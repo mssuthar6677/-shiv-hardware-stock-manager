@@ -1,0 +1,1 @@
+# -shiv-hardware-stock-manager
