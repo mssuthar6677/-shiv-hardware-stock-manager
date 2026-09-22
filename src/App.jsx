@@ -100,7 +100,10 @@ export default function App() {
     suppliers: '',
     units: '',
   });
-
+  const [quickAdd, setQuickAdd] = useState({
+  type: '',
+  value: '',
+  });
   const [productDraft, setProductDraft] = useState({
     name: '',
     category: '',
@@ -663,7 +666,76 @@ export default function App() {
       }));
     }
   }
+  async function addQuickMaster(event) {
+  event.preventDefault();
 
+  const { type, value } = quickAdd;
+  const name = value.trim();
+
+  if (!name) {
+    setNotice('Naam enter karein');
+    return;
+  }
+
+  if (type === 'products') {
+    const exists = productList.some(
+      (item) => item.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (exists) {
+      setNotice('Product pehle se maujood hai');
+      return;
+    }
+
+    const product = {
+      id: makeId(),
+      name,
+      category: form.category,
+      price: num(form.price),
+    };
+
+    const success = await save({
+      ...data,
+      products: [...data.products, product],
+    }, 'Product add ho gaya');
+
+    if (success) {
+      setForm((prev) => ({ ...prev, product: name }));
+      setQuickAdd({ type: '', value: '' });
+    }
+
+    return;
+  }
+
+  const exists = data[type].some(
+    (item) => item.toLowerCase() === name.toLowerCase()
+  );
+
+  if (exists) {
+    setNotice('Ye pehle se maujood hai');
+    return;
+  }
+
+  const success = await save({
+    ...data,
+    [type]: [...data[type], name],
+  }, 'Successfully add ho gaya');
+
+  if (success) {
+    const field = {
+      categories: 'category',
+      suppliers: 'supplier',
+      units: 'unit',
+    }[type];
+
+    setForm((prev) => ({
+      ...prev,
+      [field]: name,
+    }));
+
+    setQuickAdd({ type: '', value: '' });
+  }
+}
   async function deleteMaster(type, value) {
     const used = data.entries.some((entry) => {
       const field = {
@@ -838,6 +910,54 @@ export default function App() {
 
           {notice && <p className="notice">{notice}</p>}
         </form>
+        {quickAdd.type && (
+  <div className="quick-modal-backdrop">
+    <form
+      className="quick-modal"
+      onSubmit={addQuickMaster}
+    >
+      <h2>
+        Add {
+          quickAdd.type === 'products'
+            ? 'Product'
+            : quickAdd.type === 'categories'
+            ? 'Category'
+            : quickAdd.type === 'suppliers'
+            ? 'Supplier / Party'
+            : 'Unit'
+        }
+      </h2>
+
+      <input
+        autoFocus
+        value={quickAdd.value}
+        onChange={(e) =>
+          setQuickAdd({
+            ...quickAdd,
+            value: e.target.value,
+          })
+        }
+        placeholder="Naam enter karein"
+        required
+      />
+
+      <div className="quick-modal-actions">
+        <button
+          type="button"
+          onClick={() =>
+            setQuickAdd({ type: '', value: '' })
+          }
+        >
+          Cancel
+        </button>
+
+        <button type="submit" disabled={busy}>
+          {busy ? 'Saving…' : 'Add'}
+        </button>
+      </div>
+    </form>
+  </div>
+)}
       </main>
     );
   }
@@ -955,85 +1075,114 @@ export default function App() {
 
                 <form className="form-grid" onSubmit={addIn}>
                   <label>
-                    Product
-                    <input
-                      list="product-options"
-                      value={form.product}
-                      onChange={(event) =>
-                        selectProductForStockIn(event.target.value)
-                      }
-                      required
-                      placeholder="Product name"
-                    />
+  Product
+  <div className="quick-select">
+    <input
+      list="product-options"
+      value={form.product}
+      onChange={(e) =>
+        selectProductForStockIn(e.target.value)
+      }
+      required
+      placeholder="Product name"
+    />
 
-                    <datalist id="product-options">
-                      {productList.map((item) => (
-                        <option
-                          key={item.id}
-                          value={item.name}
-                        />
-                      ))}
-                    </datalist>
-                  </label>
+    <button
+      type="button"
+      className="quick-add-btn"
+      onClick={() =>
+        setQuickAdd({ type: 'products', value: '' })
+      }
+    >
+      +
+    </button>
+  </div>
 
-                  <label>
-                    Category
-                    <select
-                      value={form.category}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          category: event.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Select category</option>
-                      {data.categories.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+  <datalist id="product-options">
+    {productList.map((item) => (
+      <option key={item.id} value={item.name} />
+    ))}
+  </datalist>
+</label>
 
                   <label>
-                    Supplier / Party
-                    <select
-                      value={form.supplier}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          supplier: event.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Select supplier</option>
-                      {data.suppliers.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+  Category
+  <div className="quick-select">
+    <select
+      value={form.category}
+      onChange={(e) =>
+        setForm({ ...form, category: e.target.value })
+      }
+    >
+      <option value="">Select category</option>
+      {data.categories.map((item) => (
+        <option key={item} value={item}>{item}</option>
+      ))}
+    </select>
+
+    <button
+      type="button"
+      className="quick-add-btn"
+      onClick={() =>
+        setQuickAdd({ type: 'categories', value: '' })
+      }
+    >
+      +
+    </button>
+  </div>
+</label>
+                  <label>
+  Supplier / Party
+  <div className="quick-select">
+    <select
+      value={form.supplier}
+      onChange={(e) =>
+        setForm({ ...form, supplier: e.target.value })
+      }
+    >
+      <option value="">Select supplier</option>
+      {data.suppliers.map((item) => (
+        <option key={item} value={item}>{item}</option>
+      ))}
+    </select>
+
+    <button
+      type="button"
+      className="quick-add-btn"
+      onClick={() =>
+        setQuickAdd({ type: 'suppliers', value: '' })
+      }
+    >
+      +
+    </button>
+  </div>
+</label>
 
                   <label>
-                    Unit
-                    <select
-                      value={form.unit}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          unit: event.target.value,
-                        })
-                      }
-                    >
-                      {data.units.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+  Unit
+  <div className="quick-select">
+    <select
+      value={form.unit}
+      onChange={(e) =>
+        setForm({ ...form, unit: e.target.value })
+      }
+    >
+      {data.units.map((item) => (
+        <option key={item} value={item}>{item}</option>
+      ))}
+    </select>
+
+    <button
+      type="button"
+      className="quick-add-btn"
+      onClick={() =>
+        setQuickAdd({ type: 'units', value: '' })
+      }
+    >
+      +
+    </button>
+  </div>
+</label>
 
                   <label>
                     Boxes / Quantity
