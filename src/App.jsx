@@ -1,29 +1,30 @@
-import './App.css';
-const API_TOKEN_KEY = 'shiv_stock_token';
-export default function App()
-  const [token, setToken] = useState(
-  sessionStorage.getItem(API_TOKEN_KEY) || ''
-);
-
-const [loginUsername, setLoginUsername] = useState('');
-const [loginPassword, setLoginPassword] = useState('');
-const [loginError, setLoginError] = useState('');
-const [loginLoading, setLoginLoading] = useState(false);
-
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 
-const todayISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const API_TOKEN_KEY = 'shiv_stock_token';
+
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
 const money = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
 const norm = s => String(s||'').trim().toLowerCase();
 const dateLabel = iso => iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN') : '—';
 
 export default function App(){
- const [page,setPage]=useState('dashboard');
- const [entries, setEntries] = useState([]);
-const [outs, setOuts] = useState([]);
-const [categories, setCategories] = useState([]);
-const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(
+    () => sessionStorage.getItem(API_TOKEN_KEY) || ''
+  );
+
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [productsMaster, setProductsMaster] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [units, setUnits] = useState(['PCS', 'Pair', 'Set', 'Box']);
+
 async function handleLogin(ev) {
   ev.preventDefault();
   setLoginError('');
@@ -56,6 +57,7 @@ async function handleLogin(ev) {
     setLoginLoading(false);
   }
 }
+
 useEffect(() => {
   async function loadData() {
     try {
