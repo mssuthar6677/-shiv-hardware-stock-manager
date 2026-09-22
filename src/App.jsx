@@ -1,18 +1,42 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 
 const todayISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const money = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
-const load = key => { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } };
-const save = (key,val) => localStorage.setItem(key,JSON.stringify(val));
 const norm = s => String(s||'').trim().toLowerCase();
 const dateLabel = iso => iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN') : '—';
 
 export default function App(){
  const [page,setPage]=useState('dashboard');
- const [entries,setEntries]=useState(()=>load('shivStockEntries'));
- const [outs,setOuts]=useState(()=>load('shivStockOuts'));
- const [categories,setCategories]=useState(()=>load('shivStockCategories'));
+ const [entries, setEntries] = useState([]);
+const [outs, setOuts] = useState([]);
+const [categories, setCategories] = useState([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  async function loadData() {
+    try {
+      const response = await fetch('/api/data');
+
+      if (!response.ok) {
+        throw new Error('Server data load failed');
+      }
+
+      const data = await response.json();
+
+      setEntries(data.entries || []);
+      setOuts(data.outs || []);
+      setCategories(data.categories || []);
+    } catch (error) {
+      console.error(error);
+      setNotice('डेटा लोड नहीं हुआ। सर्वर कनेक्शन चेक करें।');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadData();
+}, []);
  const [newCategory,setNewCategory]=useState('');
  const [form,setForm]=useState({product:'',category:'',pcs:'',boxes:'',price:'',supplier:''});
  const [focused,setFocused]=useState(false);
@@ -30,13 +54,156 @@ export default function App(){
  const totalBoxes=stockRows.reduce((s,x)=>s+x.remaining,0), totalPcs=stockRows.reduce((s,x)=>s+x.remainingPcs,0), totalValue=stockRows.reduce((s,x)=>s+x.remainingPcs*Number(x.price||0),0);
  const inDate=entries.filter(x=>x.date>=from&&x.date<=to&& (reportCategory==='All'||x.category===reportCategory));
  const outDate=outs.filter(x=>x.date>=from&&x.date<=to&& (reportCategory==='All'||(entries.find(e=>String(e.id)===String(x.batchId))||{}).category===reportCategory));
+ async function saveAllData(nextEntries, nextOuts, nextCategories) {
+  const response = await fetch('/api/data', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      entries: nextEntries,
+      outs: nextOuts,
+      categories: nextCategories,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Database save failed');
+  }
+
+  return response.json();
+}
  function updateForm(k,v){setForm(p=>({...p,[k]:v}));}
  function chooseProduct(name){const prev=entries.find(e=>norm(e.product)===norm(name)); setForm(p=>({...p,product:name,...(prev?{category:prev.category||'',pcs:String(prev.pcs||''),price:String(prev.price||''),supplier:prev.supplier||''}:{})}));setFocused(false);}
- function saveIn(ev){ev.preventDefault();setNotice('');if(!form.product.trim()||!form.category||Number(form.pcs)<=0||Number(form.boxes)<=0||Number(form.price)<=0||!form.supplier.trim()){setNotice('Complete all fields with valid values.');return;} const entry={id:Date.now(),product:form.product.trim(),category:form.category,pcs:Number(form.pcs),boxes:Number(form.boxes),price:Number(form.price),supplier:form.supplier.trim(),totalPcs:Number(form.pcs)*Number(form.boxes),totalPrice:Number(form.pcs)*Number(form.boxes)*Number(form.price),date:todayISO()};const next=[entry,...entries];setEntries(next);save('shivStockEntries',next);setForm({product:'',category:'',pcs:'',boxes:'',price:'',supplier:''});setNotice('Stock In saved successfully.');}
- function saveOut(ev){ev.preventDefault();setNotice('');const qty=Number(outBoxes);if(!selectedBatch){setNotice('Please select an available batch.');return;}if(!Number.isInteger(qty)||qty<=0){setNotice('Enter a whole number of boxes.');return;}if(qty>remainingBoxes(selectedBatch)){setNotice(`Only ${remainingBoxes(selectedBatch)} boxes are available in this batch.`);return;}const item={id:Date.now(),batchId:selectedBatch.id,product:selectedBatch.product,pcs:selectedBatch.pcs,boxes:qty,totalPcs:qty*Number(selectedBatch.pcs),price:selectedBatch.price,date:todayISO()};const next=[item,...outs];setOuts(next);save('shivStockOuts',next);setOutBoxes('');setBatchId('');setNotice('Stock Out saved successfully.');}
- function addCategory(ev){ev.preventDefault();const name=newCategory.trim();if(!name)return;if(categories.some(c=>norm(c)===norm(name))){setNotice('Category already exists.');return;}const next=[...categories,name].sort((a,b)=>a.localeCompare(b));setCategories(next);save('shivStockCategories',next);setNewCategory('');setNotice('Category added.');}
- function table(headers,rows){return <div className="table-wrap"><table><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.length?rows.map((r,i)=><tr key={r.key??i}>{r.cells.map((c,j)=><td key={j}>{c}</td>)}</tr>):<tr><td colSpan={headers.length} className="empty">No records found.</td></tr>}</tbody></table></div>}
+async function saveIn(ev) {
+  ev.preventDefault();
+  setNotice('');
+
+  if (
+    !form.product.trim() ||
+    !form.category ||
+    Number(form.pcs) <= 0 ||
+    Number(form.boxes) <= 0 ||
+    Number(form.price) <= 0 ||
+    !form.supplier.trim()
+  ) {
+    setNotice('Complete all fields with valid values.');
+    return;
+  }
+
+  const entry = {
+    id: Date.now(),
+    product: form.product.trim(),
+    category: form.category,
+    pcs: Number(form.pcs),
+    boxes: Number(form.boxes),
+    price: Number(form.price),
+    supplier: form.supplier.trim(),
+    totalPcs: Number(form.pcs) * Number(form.boxes),
+    totalPrice:
+      Number(form.pcs) *
+      Number(form.boxes) *
+      Number(form.price),
+    date: todayISO(),
+  };
+
+  const nextEntries = [entry, ...entries];
+
+  try {
+    await saveAllData(nextEntries, outs, categories);
+    setEntries(nextEntries);
+    setForm({
+      product: '',
+      category: '',
+      pcs: '',
+      boxes: '',
+      price: '',
+      supplier: '',
+    });
+    setNotice('Stock In saved successfully.');
+  } catch (error) {
+    console.error(error);
+    setNotice('डेटाबेस में सेव नहीं हुआ। कृपया दोबारा कोशिश करें।');
+  }
+}
+async function saveOut(ev) {
+  ev.preventDefault();
+  setNotice('');
+
+  const qty = Number(outBoxes);
+
+  if (!selectedBatch) {
+    setNotice('Please select an available batch.');
+    return;
+  }
+
+  if (!Number.isInteger(qty) || qty <= 0) {
+    setNotice('Enter a whole number of boxes.');
+    return;
+  }
+
+  if (qty > remainingBoxes(selectedBatch)) {
+    setNotice(
+      `Only ${remainingBoxes(selectedBatch)} boxes are available in this batch.`
+    );
+    return;
+  }
+
+  const item = {
+    id: Date.now(),
+    batchId: selectedBatch.id,
+    product: selectedBatch.product,
+    pcs: selectedBatch.pcs,
+    boxes: qty,
+    totalPcs: qty * Number(selectedBatch.pcs),
+    price: selectedBatch.price,
+    date: todayISO(),
+  };
+
+  const nextOuts = [item, ...outs];
+
+  try {
+    await saveAllData(entries, nextOuts, categories);
+    setOuts(nextOuts);
+    setOutBoxes('');
+    setBatchId('');
+    setNotice('Stock Out saved successfully.');
+  } catch (error) {
+    console.error(error);
+    setNotice('डेटाबेस में सेव नहीं हुआ। कृपया दोबारा कोशिश करें।');
+  }
+}
+async function addCategory(ev) {
+  ev.preventDefault();
+
+  const name = newCategory.trim();
+
+  if (!name) return;
+
+  if (categories.some(c => norm(c) === norm(name))) {
+    setNotice('Category already exists.');
+    return;
+  }
+
+  const nextCategories = [...categories, name].sort(
+    (a, b) => a.localeCompare(b)
+  );
+
+  try {
+    await saveAllData(entries, outs, nextCategories);
+    setCategories(nextCategories);
+    setNewCategory('');
+    setNotice('Category added.');
+  } catch (error) {
+    console.error(error);
+    setNotice('डेटाबेस में सेव नहीं हुआ। कृपया दोबारा कोशिश करें।');
+  }
+}
+function table(headers,rows){return <div className="table-wrap"><table><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.length?rows.map((r,i)=><tr key={r.key??i}>{r.cells.map((c,j)=><td key={j}>{c}</td>)}</tr>):<tr><td colSpan={headers.length} className="empty">No records found.</td></tr>}</tbody></table></div>}
  const nav=[['dashboard','Dashboard'],['in','Stock In'],['out','Stock Out'],['stock','Current Stock'],['history','Stock History'],['reports','Reports'],['categories','Manage Categories']];
+ if (loading) {
+  return <div className="app-shell">डेटा लोड हो रहा है...</div>;
+}
  return <div className="app-shell"><aside className="sidebar"><div className="brand"><div className="brand-mark">SH</div><div><b>SHIV HARDWARE</b><small>Warehouse Stock Manager</small></div></div><nav>{nav.map(([k,label])=><button key={k} className={page===k?'active':''} onClick={()=>{setPage(k);setNotice('');}}>{label}</button>)}</nav><div className="sidebar-foot">Inventory • Batch tracking</div></aside>
  <main className="main"><header className="topbar"><div><p className="eyebrow">WAREHOUSE MANAGEMENT</p><h1>{nav.find(x=>x[0]===page)?.[1]||'Dashboard'}</h1></div><div className="today-chip">Today · {dateLabel(todayISO())}</div></header>
  {notice&&<div className="notice">{notice}</div>}
