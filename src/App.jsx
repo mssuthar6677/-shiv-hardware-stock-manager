@@ -1,263 +1,38 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
-
-const API_TOKEN_KEY = 'shiv_stock_token';
-
-const todayISO = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
-
-const money = n => `₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
-const norm = s => String(s||'').trim().toLowerCase();
-const dateLabel = iso => iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN') : '—';
-
+const EMPTY={entries:[],outs:[],categories:[],products:[],suppliers:[],units:['PCS','Pair','Set','Box','Dozen']};
+const arr=x=>Array.isArray(x)?x:[]; const n=x=>Number(x)||0; const id=()=>globalThis.crypto?.randomUUID?.()||String(Date.now())+Math.random();
 export default function App(){
-  const [token, setToken] = useState(
-    () => sessionStorage.getItem(API_TOKEN_KEY) || ''
-  );
-
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [productsMaster, setProductsMaster] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [units, setUnits] = useState(['PCS', 'Pair', 'Set', 'Box']);
-
-async function handleLogin(ev) {
-  ev.preventDefault();
-  setLoginError('');
-  setLoginLoading(true);
-
-  try {
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: loginUsername,
-        password: loginPassword,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.token) {
-      throw new Error(data.error || 'Login failed');
-    }
-
-    sessionStorage.setItem(API_TOKEN_KEY, data.token);
-    setToken(data.token);
-    setLoginPassword('');
-  } catch (error) {
-    setLoginError(error.message || 'Login नहीं हुआ।');
-  } finally {
-    setLoginLoading(false);
-  }
+ const [token,setToken]=useState(()=>sessionStorage.getItem('shiv_token')||'');
+ const [username,setUsername]=useState(''),[password,setPassword]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false);
+ const [data,setData]=useState(EMPTY),[page,setPage]=useState('dashboard'),[search,setSearch]=useState('');
+ const [master,setMaster]=useState({categories:'',products:'',suppliers:'',units:''});
+ const [form,setForm]=useState({product:'',category:'',supplier:'',unit:'PCS',boxes:'',pcs:'1',price:'',note:''});
+ const [out,setOut]=useState({product:'',boxes:'',note:''});
+ const headers=useCallback(()=>({'Content-Type':'application/json',Authorization:`Bearer ${token}`}),[token]);
+ const load=useCallback(async t=>{if(!t)return;setLoading(true);try{let r=await fetch('/api/data',{headers:{Authorization:`Bearer ${t}`}});if(r.status===401){sessionStorage.removeItem('shiv_token');setToken('');setData(EMPTY);throw Error('Session expire ho gaya, dobara login karein.')}if(!r.ok)throw Error('Data load nahi hua');let d=await r.json();setData({entries:arr(d.entries),outs:arr(d.outs),categories:arr(d.categories),products:arr(d.products),suppliers:arr(d.suppliers),units:arr(d.units).length?d.units:EMPTY.units});}catch(e){setNotice(e.message)}finally{setLoading(false)}},[]);
+ useEffect(()=>{if(token)load(token);else setData(EMPTY)},[token,load]);
+ async function login(e){e.preventDefault();setBusy(true);try{let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username.trim(),password})});let d=await r.json().catch(()=>({}));if(!r.ok||!d.token)throw Error(d.error||'Login details galat hain');sessionStorage.setItem('shiv_token',d.token);setToken(d.token);setPassword('');setNotice('')}catch(e){setNotice(e.message)}finally{setBusy(false)}}
+ function logout(){sessionStorage.removeItem('shiv_token');setToken('');setData(EMPTY);setNotice('Logout ho gaya')}
+ async function save(next){setBusy(true);setNotice('');const payload={entries:arr(next.entries),outs:arr(next.outs),categories:arr(next.categories),products:arr(next.products),suppliers:arr(next.suppliers),units:arr(next.units)};try{let r=await fetch('/api/data',{method:'PUT',headers:headers(),body:JSON.stringify(payload)});let d=await r.json().catch(()=>({}));if(r.status===401){logout();throw Error('Session expire. Dobara login karein.')}if(!r.ok)throw Error(d.error||`Save failed (${r.status})`);setData(payload);setNotice('Saved successfully');return true}catch(e){setNotice(e.message);return false}finally{setBusy(false)}}
+ const products=[...new Set([...data.products,...data.entries.map(x=>x.product)].filter(Boolean))].sort();
+ const stock=useMemo(()=>{let m={};data.entries.forEach(e=>{let k=e.product||'Unknown';m[k]??={product:k,category:e.category||'',supplier:e.supplier||'',unit:e.unit||'PCS',incoming:0,outgoing:0};m[k].incoming+=n(e.boxes);m[k].category ||=e.category||'';m[k].supplier ||=e.supplier||'';m[k].unit=e.unit||m[k].unit});data.outs.forEach(o=>{if(m[o.product])m[o.product].outgoing+=n(o.boxes)});return Object.values(m).map(x=>({...x,available:x.incoming-x.outgoing})).sort((a,b)=>a.product.localeCompare(b.product))},[data]);
+ async function addIn(e){e.preventDefault();if(!form.product.trim()||n(form.boxes)<=0)return setNotice('Product aur valid quantity bharna zaroori hai');let entry={...form,id:id(),product:form.product.trim(),boxes:n(form.boxes),pcs:Math.max(1,n(form.pcs)),price:n(form.price),createdAt:new Date().toISOString()};if(await save({...data,entries:[...data.entries,entry]}))setForm({...form,product:'',boxes:'',price:'',note:''})}
+ async function addOut(e){e.preventDefault();let q=n(out.boxes),available=stock.find(x=>x.product===out.product)?.available||0;if(!out.product||q<=0)return setNotice('Product aur quantity select karein');if(q>available)return setNotice(`Available stock ${available} hai`);if(await save({...data,outs:[...data.outs,{...out,id:id(),boxes:q,createdAt:new Date().toISOString()}]}))setOut({product:'',boxes:'',note:''})}
+ async function delOut(x){if(confirm('Stock-out delete karein? Quantity wapas stock mein jud jayegi.'))await save({...data,outs:data.outs.filter(y=>y.id!==x.id)})}
+ async function delEntry(x){if(data.outs.some(o=>o.product===x.product))return setNotice('Is product ke stock-out records pehle delete karein.');if(confirm('Stock-in entry delete karein?'))await save({...data,entries:data.entries.filter(y=>y.id!==x.id)})}
+ async function addMaster(type){let v=(master[type]||'').trim();if(!v)return setNotice('Naam enter karein');if(data[type].some(x=>x.toLowerCase()===v.toLowerCase()))return setNotice('Ye pehle se maujood hai');if(await save({...data,[type]:[...data[type],v]}))setMaster({...master,[type]:''})}
+ async function delMaster(type,v){let used=data.entries.some(e=>({products:e.product,categories:e.category,suppliers:e.supplier,units:e.unit})[type]===v);if(used)return setNotice('Ye item stock entries mein use ho raha hai');if(confirm(`${v} delete karein?`))await save({...data,[type]:data[type].filter(x=>x!==v)})}
+ if(!token)return <main className="login-wrap"><form className="login-card" onSubmit={login}><div className="login-mark">SH</div><h1>Shiv Hardware</h1><p>Stock Manager Login</p><label>Username<input value={username} onChange={e=>setUsername(e.target.value)} required autoComplete="username"/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password"/></label><button disabled={busy}>{busy?'Logging in…':'Login'}</button>{notice&&<p className="notice">{notice}</p>}</form></main>;
+ const nav=[['dashboard','Dashboard'],['in','Stock In'],['out','Stock Out'],['stock','Current Stock'],['history','History'],['masters','Masters']];
+ return <div className="app-shell"><aside className="sidebar"><div className="brand"><b>SH</b><span>Shiv Hardware<small>Stock Manager</small></span></div><nav>{nav.map(([k,v])=><button key={k} className={page===k?'active':''} onClick={()=>setPage(k)}>{v}</button>)}</nav><button className="logout-btn" onClick={logout}>Logout</button></aside><main className="main-content"><header className="topbar"><div><h1>{nav.find(x=>x[0]===page)?.[1]}</h1><p>Inventory management</p></div><span className="status">{busy?'Saving…':'Connected'}</span></header>{notice&&<div className="notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}{loading?<section className="panel">Loading…</section>:<>
+ {page==='dashboard'&&<div className="dashboard-grid">{[['Products',products.length],['Available boxes',stock.reduce((s,x)=>s+x.available,0)],['Stock-in records',data.entries.length],['Stock-out records',data.outs.length]].map(([a,b])=><article className="stat-card" key={a}><span>{a}</span><strong>{b}</strong></article>)}<section className="panel wide"><h2>Current Stock</h2><StockTable rows={stock.filter(x=>x.available<=5)}/></section></div>}
+ {page==='in'&&<section className="panel"><h2>Add Stock In</h2><form className="form-grid" onSubmit={addIn}><label>Product<input list="products" value={form.product} onChange={e=>setForm({...form,product:e.target.value})} required/><datalist id="products">{products.map(x=><option key={x}/>)}</datalist></label><label>Category<select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}><option value="">Select category</option>{data.categories.map(x=><option key={x}>{x}</option>)}</select></label><label>Supplier<select value={form.supplier} onChange={e=>setForm({...form,supplier:e.target.value})}><option value="">Select supplier</option>{data.suppliers.map(x=><option key={x}>{x}</option>)}</select></label><label>Unit<select value={form.unit} onChange={e=>setForm({...form,unit:e.target.value})}>{data.units.map(x=><option key={x}>{x}</option>)}</select></label><label>Boxes / Qty<input type="number" min="1" value={form.boxes} onChange={e=>setForm({...form,boxes:e.target.value})} required/></label><label>Units per box<input type="number" min="1" value={form.pcs} onChange={e=>setForm({...form,pcs:e.target.value})} required/></label><label>Unit price<input type="number" min="0" step="0.01" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></label><label>Note<input value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label><button disabled={busy}>Save Stock In</button></form></section>}
+ {page==='out'&&<section className="panel"><h2>Stock Out</h2><form className="form-grid" onSubmit={addOut}><label>Product<select value={out.product} onChange={e=>setOut({...out,product:e.target.value})} required><option value="">Select product</option>{stock.filter(x=>x.available>0).map(x=><option key={x.product} value={x.product}>{x.product} — {x.available} available</option>)}</select></label><label>Boxes / Qty<input type="number" min="1" value={out.boxes} onChange={e=>setOut({...out,boxes:e.target.value})} required/></label><label>Note<input value={out.note} onChange={e=>setOut({...out,note:e.target.value})}/></label><button disabled={busy}>Save Stock Out</button></form></section>}
+ {page==='stock'&&<section className="panel"><div className="panel-heading"><h2>Current Stock</h2><input placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)}/></div><StockTable rows={stock.filter(x=>`${x.product} ${x.category} ${x.supplier}`.toLowerCase().includes(search.toLowerCase()))}/></section>}
+ {page==='history'&&<section className="panel"><h2>History — Stock In</h2><div className="table-scroll"><table><thead><tr><th>Date</th><th>Product</th><th>Category</th><th>Supplier</th><th>Qty</th><th>Unit</th><th>Price</th><th></th></tr></thead><tbody>{[...data.entries].reverse().map(x=><tr key={x.id}><td>{date(x.createdAt)}</td><td>{x.product}</td><td>{x.category}</td><td>{x.supplier}</td><td>{x.boxes}</td><td>{x.unit||'PCS'}</td><td>{x.price}</td><td><button className="danger" onClick={()=>delEntry(x)}>Delete</button></td></tr>)}</tbody></table></div><h2>History — Stock Out</h2><div className="table-scroll"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Note</th><th></th></tr></thead><tbody>{[...data.outs].reverse().map(x=><tr key={x.id}><td>{date(x.createdAt)}</td><td>{x.product}</td><td>{x.boxes}</td><td>{x.note}</td><td><button className="danger" onClick={()=>delOut(x)}>Delete</button></td></tr>)}</tbody></table></div></section>}
+ {page==='masters'&&<div className="master-grid">{[['categories','Categories'],['products','Products'],['suppliers','Suppliers'],['units','Units']].map(([type,title])=><section className="panel master-card" key={type}><h2>{title}</h2><form onSubmit={e=>{e.preventDefault();addMaster(type)}}><input placeholder={`New ${title.slice(0,-1)}`} value={master[type]} onChange={e=>setMaster({...master,[type]:e.target.value})}/><button disabled={busy}>Add</button></form><ul>{data[type].map(v=><li key={v}><span>{v}</span><button className="danger" onClick={()=>delMaster(type,v)}>Delete</button></li>)}</ul></section>)}</div>}
+ </>}<footer>Shiv Hardware Stock Manager · Shared data sync</footer></main></div>
 }
-
-useEffect(() => {
-  async function loadData() {
-    try {
-      const response = await fetch('/api/data');
-
-      if (!response.ok) {
-        throw new Error('Server data load failed');
-      }
-
-      const data = await response.json();
-
-      setEntries(data.entries || []);
-      setOuts(data.outs || []);
-      setCategories(data.categories || []);
-    } catch (error) {
-      console.error(error);
-      setNotice('डेटा लोड नहीं हुआ। सर्वर कनेक्शन चेक करें।');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  loadData();
-}, []);
- const [newCategory,setNewCategory]=useState('');
- const [form,setForm]=useState({product:'',category:'',pcs:'',boxes:'',price:'',supplier:''});
- const [focused,setFocused]=useState(false);
- const [outProduct,setOutProduct]=useState(''); const [outFocus,setOutFocus]=useState(false); const [batchId,setBatchId]=useState(''); const [outBoxes,setOutBoxes]=useState('');
- const [search,setSearch]=useState(''); const [filterCategory,setFilterCategory]=useState('All'); const [includePrices,setIncludePrices]=useState(false);
- const [from,setFrom]=useState(todayISO()); const [to,setTo]=useState(todayISO()); const [reportCategory,setReportCategory]=useState('All');
- const [reportTab,setReportTab]=useState('date'); const [notice,setNotice]=useState('');
- const products=useMemo(()=>[...new Set(entries.map(x=>x.product).filter(Boolean))].sort((a,b)=>a.localeCompare(b)),[entries]);
- const productMatches=products.filter(x=>norm(x).startsWith(norm(form.product)));
- const outMatches=products.filter(x=>norm(x).startsWith(norm(outProduct)));
- const remainingBoxes=batch=>Math.max(0,Number(batch.boxes||0)-outs.filter(o=>String(o.batchId)===String(batch.id)).reduce((s,o)=>s+Number(o.boxes||0),0));
- const batches=entries.filter(x=>norm(x.product)===norm(outProduct)&&remainingBoxes(x)>0);
- const selectedBatch=entries.find(x=>String(x.id)===String(batchId));
- const stockRows=entries.map(e=>({...e,remaining:remainingBoxes(e),remainingPcs:remainingBoxes(e)*Number(e.pcs||0)}));
- const totalBoxes=stockRows.reduce((s,x)=>s+x.remaining,0), totalPcs=stockRows.reduce((s,x)=>s+x.remainingPcs,0), totalValue=stockRows.reduce((s,x)=>s+x.remainingPcs*Number(x.price||0),0);
- const inDate=entries.filter(x=>x.date>=from&&x.date<=to&& (reportCategory==='All'||x.category===reportCategory));
- const outDate=outs.filter(x=>x.date>=from&&x.date<=to&& (reportCategory==='All'||(entries.find(e=>String(e.id)===String(x.batchId))||{}).category===reportCategory));
- async function saveAllData(nextEntries, nextOuts, nextCategories) {
-  const response = await fetch('/api/data', {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      entries: nextEntries,
-      outs: nextOuts,
-      categories: nextCategories,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Database save failed');
-  }
-
-  return response.json();
-}
- function updateForm(k,v){setForm(p=>({...p,[k]:v}));}
- function chooseProduct(name){const prev=entries.find(e=>norm(e.product)===norm(name)); setForm(p=>({...p,product:name,...(prev?{category:prev.category||'',pcs:String(prev.pcs||''),price:String(prev.price||''),supplier:prev.supplier||''}:{})}));setFocused(false);}
-async function saveIn(ev) {
-  ev.preventDefault();
-  setNotice('');
-
-  if (
-    !form.product.trim() ||
-    !form.category ||
-    Number(form.pcs) <= 0 ||
-    Number(form.boxes) <= 0 ||
-    Number(form.price) <= 0 ||
-    !form.supplier.trim()
-  ) {
-    setNotice('Complete all fields with valid values.');
-    return;
-  }
-
-  const entry = {
-    id: Date.now(),
-    product: form.product.trim(),
-    category: form.category,
-    pcs: Number(form.pcs),
-    boxes: Number(form.boxes),
-    price: Number(form.price),
-    supplier: form.supplier.trim(),
-    totalPcs: Number(form.pcs) * Number(form.boxes),
-    totalPrice:
-      Number(form.pcs) *
-      Number(form.boxes) *
-      Number(form.price),
-    date: todayISO(),
-  };
-
-  const nextEntries = [entry, ...entries];
-
-  try {
-    await saveAllData(nextEntries, outs, categories);
-    setEntries(nextEntries);
-    setForm({
-      product: '',
-      category: '',
-      pcs: '',
-      boxes: '',
-      price: '',
-      supplier: '',
-    });
-    setNotice('Stock In saved successfully.');
-  } catch (error) {
-    console.error(error);
-    setNotice('डेटाबेस में सेव नहीं हुआ। कृपया दोबारा कोशिश करें।');
-  }
-}
-async function saveOut(ev) {
-  ev.preventDefault();
-  setNotice('');
-
-  const qty = Number(outBoxes);
-
-  if (!selectedBatch) {
-    setNotice('Please select an available batch.');
-    return;
-  }
-
-  if (!Number.isInteger(qty) || qty <= 0) {
-    setNotice('Enter a whole number of boxes.');
-    return;
-  }
-
-  if (qty > remainingBoxes(selectedBatch)) {
-    setNotice(
-      `Only ${remainingBoxes(selectedBatch)} boxes are available in this batch.`
-    );
-    return;
-  }
-
-  const item = {
-    id: Date.now(),
-    batchId: selectedBatch.id,
-    product: selectedBatch.product,
-    pcs: selectedBatch.pcs,
-    boxes: qty,
-    totalPcs: qty * Number(selectedBatch.pcs),
-    price: selectedBatch.price,
-    date: todayISO(),
-  };
-
-  const nextOuts = [item, ...outs];
-
-  try {
-    await saveAllData(entries, nextOuts, categories);
-    setOuts(nextOuts);
-    setOutBoxes('');
-    setBatchId('');
-    setNotice('Stock Out saved successfully.');
-  } catch (error) {
-    console.error(error);
-    setNotice('डेटाबेस में सेव नहीं हुआ। कृपया दोबारा कोशिश करें।');
-  }
-}
-async function addCategory(ev) {
-  ev.preventDefault();
-
-  const name = newCategory.trim();
-
-  if (!name) return;
-
-  if (categories.some(c => norm(c) === norm(name))) {
-    setNotice('Category already exists.');
-    return;
-  }
-
-  const nextCategories = [...categories, name].sort(
-    (a, b) => a.localeCompare(b)
-  );
-
-  try {
-    await saveAllData(entries, outs, nextCategories);
-    setCategories(nextCategories);
-    setNewCategory('');
-    setNotice('Category added.');
-  } catch (error) {
-    console.error(error);
-    setNotice('डेटाबेस में सेव नहीं हुआ। कृपया दोबारा कोशिश करें।');
-  }
-}
-function table(headers,rows){return <div className="table-wrap"><table><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.length?rows.map((r,i)=><tr key={r.key??i}>{r.cells.map((c,j)=><td key={j}>{c}</td>)}</tr>):<tr><td colSpan={headers.length} className="empty">No records found.</td></tr>}</tbody></table></div>}
- const nav=[['dashboard','Dashboard'],['in','Stock In'],['out','Stock Out'],['stock','Current Stock'],['history','Stock History'],['reports','Reports'],['categories','Manage Categories']];
- if (loading) {
-  return <div className="app-shell">डेटा लोड हो रहा है...</div>;
-}
- return <div className="app-shell"><aside className="sidebar"><div className="brand"><div className="brand-mark">SH</div><div><b>SHIV HARDWARE</b><small>Warehouse Stock Manager</small></div></div><nav>{nav.map(([k,label])=><button key={k} className={page===k?'active':''} onClick={()=>{setPage(k);setNotice('');}}>{label}</button>)}</nav><div className="sidebar-foot">Inventory • Batch tracking</div></aside>
- <main className="main"><header className="topbar"><div><p className="eyebrow">WAREHOUSE MANAGEMENT</p><h1>{nav.find(x=>x[0]===page)?.[1]||'Dashboard'}</h1></div><div className="today-chip">Today · {dateLabel(todayISO())}</div></header>
- {notice&&<div className="notice">{notice}</div>}
- {page==='dashboard'&&<><section className="stats">{[['Products',products.length],['Available Boxes',totalBoxes],['Available PCS',totalPcs],['Stock Value',money(totalValue)],['Boxes Received',entries.reduce((s,x)=>s+Number(x.boxes||0),0)],['Boxes Issued',outs.reduce((s,x)=>s+Number(x.boxes||0),0)]].map(([l,v])=><article className="stat" key={l}><span>{l}</span><strong>{v}</strong></article>)}</section><section className="panel"><div className="panel-head"><h2>Recent Stock Activity</h2><button className="text-btn" onClick={()=>setPage('history')}>View history →</button></div>{table(['Date','Type','Product','Category','Boxes','Quantity (PCS)','Supplier / Batch'],[...entries.slice(0,5).map(x=>({key:`in${x.id}`,cells:[dateLabel(x.date),'Stock In',x.product,x.category,x.boxes,x.totalPcs,x.supplier]})),...outs.slice(0,5).map(x=>({key:`out${x.id}`,cells:[dateLabel(x.date),'Stock Out',x.product,(entries.find(e=>String(e.id)===String(x.batchId))||{}).category||'—',x.boxes,x.totalPcs,`Batch #${x.batchId}`]}))].sort((a,b)=>String(b.cells[0]).localeCompare(String(a.cells[0]))).slice(0,8))}</section></>}
- {page==='in'&&<><section className="panel"><div className="panel-head"><h2>Record incoming stock</h2><span className="muted">Date is automatic</span></div><form className="form-grid" onSubmit={saveIn}><label className="field wide"><span>Product name</span><input value={form.product} onChange={e=>{updateForm('product',e.target.value);setFocused(true);}} onFocus={()=>setFocused(true)} onBlur={()=>setTimeout(()=>setFocused(false),130)} placeholder="Search or enter product" autoComplete="off" required/>{focused&&form.product.trim()&&<div className="suggestions">{productMatches.length?productMatches.map(n=><button type="button" key={n} onMouseDown={e=>e.preventDefault()} onClick={()=>chooseProduct(n)}>{n}</button>):<div>No item found</div>}</div>}</label><label className="field"><span>Category</span><select value={form.category} onChange={e=>updateForm('category',e.target.value)} required><option value="">Select category</option>{categories.map(c=><option key={c}>{c}</option>)}</select>{!categories.length&&<small>Add categories in Manage Categories first.</small>}</label><label className="field"><span>PCS in Box</span><input type="number" min="1" step="1" value={form.pcs} onChange={e=>updateForm('pcs',e.target.value)} required/></label><label className="field"><span>Boxes received</span><input type="number" min="1" step="1" value={form.boxes} onChange={e=>updateForm('boxes',e.target.value)} required/></label><label className="field"><span>Purchase price / PCS (₹)</span><input type="number" min="0.01" step="0.01" value={form.price} onChange={e=>updateForm('price',e.target.value)} required/></label><label className="field"><span>Supplier</span><input value={form.supplier} onChange={e=>updateForm('supplier',e.target.value)} placeholder="Supplier name" required/></label><div className="calculation wide"><div><span>Total PCS</span><strong>{Number(form.pcs||0)*Number(form.boxes||0)}</strong></div><div><span>Total purchase value</span><strong>{money(Number(form.pcs||0)*Number(form.boxes||0)*Number(form.price||0))}</strong></div><div><span>Entry date</span><strong>{dateLabel(todayISO())}</strong></div></div><div className="wide"><button className="primary" type="submit">Save Stock In</button></div></form></section><section className="panel"><h2>Recent Stock In</h2>{table(['Date','Product','Category','PCS/Box','Boxes','Price/PCS','Supplier','Total PCS','Total Value'],entries.slice(0,12).map(x=>({key:x.id,cells:[dateLabel(x.date),x.product,x.category||'—',x.pcs,x.boxes,money(x.price),x.supplier,x.totalPcs,money(x.totalPrice)]})))}</section></>}
- {page==='out'&&<section className="panel"><div className="panel-head"><h2>Issue stock by purchase batch</h2><span className="muted">Whole boxes only</span></div><form className="form-grid" onSubmit={saveOut}><label className="field wide"><span>Product</span><input value={outProduct} onChange={e=>{setOutProduct(e.target.value);setBatchId('');setOutFocus(true);}} onFocus={()=>setOutFocus(true)} onBlur={()=>setTimeout(()=>setOutFocus(false),130)} placeholder="Search product" autoComplete="off" required/>{outFocus&&outProduct.trim()&&<div className="suggestions">{outMatches.length?outMatches.map(n=><button type="button" key={n} onMouseDown={e=>e.preventDefault()} onClick={()=>{setOutProduct(n);setBatchId('');setOutFocus(false);}}>{n}</button>):<div>No item found</div>}</div>}</label><label className="field wide"><span>Purchase batch (rate kept separate)</span><select value={batchId} onChange={e=>setBatchId(e.target.value)} required><option value="">Select available batch</option>{batches.map(b=><option key={b.id} value={b.id}>{dateLabel(b.date)} · {money(b.price)}/PCS · {remainingBoxes(b)} boxes · {b.supplier}</option>)}</select>{outProduct&&!batches.length&&<small>No available batch for this product.</small>}</label>{selectedBatch&&<div className="batch-summary wide"><b>{selectedBatch.product}</b><span>Category: {selectedBatch.category||'—'}</span><span>PCS/Box: {selectedBatch.pcs}</span><span>Rate: {money(selectedBatch.price)}/PCS</span><span>Remaining: {remainingBoxes(selectedBatch)} boxes ({remainingBoxes(selectedBatch)*Number(selectedBatch.pcs)} PCS)</span></div>}<label className="field"><span>Boxes to issue</span><input type="number" min="1" max={selectedBatch?remainingBoxes(selectedBatch):undefined} step="1" value={outBoxes} onChange={e=>setOutBoxes(e.target.value)} required/></label><div className="field"><span>Entry date</span><div className="readonly">{dateLabel(todayISO())}</div></div><div className="wide"><button className="primary" type="submit">Save Stock Out</button></div></form></section>}
- {page==='stock'&&<><section className="panel"><div className="panel-head"><h2>Current stock</h2><div className="filters"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search product / supplier"/><select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)}><option>All</option>{categories.map(c=><option key={c}>{c}</option>)}</select><label className="price-toggle"><input type="checkbox" checked={includePrices} onChange={e=>setIncludePrices(e.target.checked)}/> Include prices (Yes/No)</label><button className="primary" type="button" onClick={()=>window.print()}>Create Category-wise PDF</button></div></div>{categories.map(cat=>{const rows=stockRows.filter(x=>x.category===cat&&(filterCategory==='All'||filterCategory===cat)&&(`${x.product} ${x.supplier}`.toLowerCase().includes(search.toLowerCase())));if(!rows.length)return null;return <div className="category-block" key={cat}><h3>{cat} <span>{rows.reduce((s,x)=>s+x.remaining,0)} boxes · {rows.reduce((s,x)=>s+x.remainingPcs,0)} PCS</span></h3>{table(['Product','Batch Date','PCS/Box','Rate','Supplier','Available Boxes','Available PCS','Stock Value'],rows.map(x=>({key:x.id,cells:[x.product,dateLabel(x.date),x.pcs,money(x.price),x.supplier,x.remaining,x.remainingPcs,money(x.remainingPcs*x.price)]})))}</div>})}{!stockRows.some(x=>(filterCategory==='All'||x.category===filterCategory)&&(`${x.product} ${x.supplier}`.toLowerCase().includes(search.toLowerCase())))&&<p className="empty">No matching stock.</p>}</section><section className="print-area"><h1>SHIV HARDWARE — Current Stock</h1><p>Generated: {dateLabel(todayISO())}</p>{categories.filter(cat=>filterCategory==='All'||filterCategory===cat).map(cat=>{const rows=stockRows.filter(x=>x.category===cat&&(`${x.product} ${x.supplier}`.toLowerCase().includes(search.toLowerCase())));if(!rows.length)return null;const headers=['Product','Batch Date','PCS/Box','Supplier','Available Boxes','Available PCS',...(includePrices?['Rate','Stock Value']:[])];return <div className="print-category" key={cat}><h2>{cat}</h2>{table(headers,rows.map(x=>({key:x.id,cells:[x.product,dateLabel(x.date),x.pcs,x.supplier,x.remaining,x.remainingPcs,...(includePrices?[money(x.price),money(x.remainingPcs*x.price)]:[])]})))}</div>;})}</section></>}
- {page==='history'&&<><section className="panel"><h2>Stock In History</h2>{table(['Date','Product','Category','PCS/Box','Boxes In','Rate','Supplier','Total PCS','Value'],entries.map(x=>({key:x.id,cells:[dateLabel(x.date),x.product,x.category||'—',x.pcs,x.boxes,money(x.price),x.supplier,x.totalPcs,money(x.totalPrice)]})))}</section><section className="panel"><h2>Stock Out History</h2>{table(['Date','Product','Batch ID','PCS/Box','Boxes Out','Total PCS','Purchase Rate'],outs.map(x=>({key:x.id,cells:[dateLabel(x.date),x.product,x.batchId,x.pcs,x.boxes,x.totalPcs,money(x.price)]})))}</section></>}
- {page==='categories'&&<section className="panel"><h2>Manage Categories</h2><form className="category-form" onSubmit={addCategory}><input value={newCategory} onChange={e=>setNewCategory(e.target.value)} placeholder="Enter new category name" required/><button className="primary" type="submit">Add Category</button></form><div className="category-list">{categories.length?categories.map(c=><span className="category-pill" key={c}>{c}</span>):<p className="muted">No categories yet. Add one above.</p>}</div><p className="muted">Categories are selected during Stock In and used to group Current Stock and Reports.</p></section>}
- {page==='reports'&&<><section className="panel"><div className="panel-head"><h2>Reports</h2><div className="filters"><input aria-label="From date" type="date" value={from} onChange={e=>setFrom(e.target.value)}/><span>to</span><input aria-label="To date" type="date" value={to} onChange={e=>setTo(e.target.value)}/><select value={reportCategory} onChange={e=>setReportCategory(e.target.value)}><option>All</option>{categories.map(c=><option key={c}>{c}</option>)}</select></div></div><div className="tabs"><button className={reportTab==='date'?'selected':''} onClick={()=>setReportTab('date')}>Date-wise</button><button className={reportTab==='category'?'selected':''} onClick={()=>setReportTab('category')}>Category-wise</button><button className={reportTab==='supplier'?'selected':''} onClick={()=>setReportTab('supplier')}>Supplier-wise</button></div>{reportTab==='date'&&<><h3>Materials received</h3>{table(['Date','Product','Category','Supplier','Boxes In','PCS In','Purchase Value'],inDate.map(x=>({key:x.id,cells:[dateLabel(x.date),x.product,x.category||'—',x.supplier,x.boxes,x.totalPcs,money(x.totalPrice)]}))) }<h3 className="subhead">Materials issued</h3>{table(['Date','Product','Category','Batch','Boxes Out','PCS Out','Purchase Rate'],outDate.map(x=>({key:x.id,cells:[dateLabel(x.date),x.product,(entries.find(e=>String(e.id)===String(x.batchId))||{}).category||'—',x.batchId,x.boxes,x.totalPcs,money(x.price)]})))}</>}{reportTab==='category'&&table(['Category','Products','Boxes Received','Boxes Issued','Available Boxes','Available PCS','Current Value'],categories.map(c=>{const es=entries.filter(x=>x.category===c);const os=outs.filter(o=>es.some(e=>String(e.id)===String(o.batchId)));const remaining=es.reduce((s,e)=>s+remainingBoxes(e),0);return {key:c,cells:[c,new Set(es.map(e=>norm(e.product))).size,es.reduce((s,e)=>s+Number(e.boxes||0),0),os.reduce((s,o)=>s+Number(o.boxes||0),0),remaining,es.reduce((s,e)=>s+remainingBoxes(e)*Number(e.pcs||0),0),money(es.reduce((s,e)=>s+remainingBoxes(e)*Number(e.pcs||0)*Number(e.price||0),0))]};}))}{reportTab==='supplier'&&table(['Supplier','Category','Boxes Received','PCS Received','Purchase Value'],[...new Set(entries.map(e=>e.supplier))].map(s=>{const es=entries.filter(e=>e.supplier===s&&(reportCategory==='All'||e.category===reportCategory)&&e.date>=from&&e.date<=to);return {key:s,cells:[s,[...new Set(es.map(e=>e.category||'—'))].join(', ')||'—',es.reduce((a,e)=>a+Number(e.boxes||0),0),es.reduce((a,e)=>a+Number(e.totalPcs||0),0),money(es.reduce((a,e)=>a+Number(e.totalPrice||0),0))]};}).filter(r=>r.cells[2]>0))}</section></>}
- <footer className="footer">Shiv Hardware · Stock Manager</footer></main></div>;
-}
+function date(v){if(!v)return '—';let d=new Date(v);return isNaN(d)?String(v):d.toLocaleString('en-IN')}
+function StockTable({rows}){return !rows.length?<p className="empty-state">Koi record nahi hai.</p>:<div className="table-scroll"><table><thead><tr><th>Product</th><th>Category</th><th>Supplier</th><th>Unit</th><th>Stock In</th><th>Stock Out</th><th>Available</th></tr></thead><tbody>{rows.map(x=><tr key={x.product}><td>{x.product}</td><td>{x.category||'—'}</td><td>{x.supplier||'—'}</td><td>{x.unit||'PCS'}</td><td>{x.incoming}</td><td>{x.outgoing}</td><td><b>{x.available}</b></td></tr>)}</tbody></table></div>}
