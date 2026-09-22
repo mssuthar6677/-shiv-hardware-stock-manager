@@ -1,3 +1,15 @@
+import './App.css';
+const API_TOKEN_KEY = 'shiv_stock_token';
+export default function App()
+  const [token, setToken] = useState(
+  sessionStorage.getItem(API_TOKEN_KEY) || ''
+);
+
+const [loginUsername, setLoginUsername] = useState('');
+const [loginPassword, setLoginPassword] = useState('');
+const [loginError, setLoginError] = useState('');
+const [loginLoading, setLoginLoading] = useState(false);
+
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 
@@ -12,7 +24,38 @@ export default function App(){
 const [outs, setOuts] = useState([]);
 const [categories, setCategories] = useState([]);
 const [loading, setLoading] = useState(true);
+async function handleLogin(ev) {
+  ev.preventDefault();
+  setLoginError('');
+  setLoginLoading(true);
 
+  try {
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: loginUsername,
+        password: loginPassword,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.token) {
+      throw new Error(data.error || 'Login failed');
+    }
+
+    sessionStorage.setItem(API_TOKEN_KEY, data.token);
+    setToken(data.token);
+    setLoginPassword('');
+  } catch (error) {
+    setLoginError(error.message || 'Login नहीं हुआ।');
+  } finally {
+    setLoginLoading(false);
+  }
+}
 useEffect(() => {
   async function loadData() {
     try {
