@@ -863,8 +863,15 @@ export default function App() {
   ]);
 
   function printReport() {
-    window.print();
+  const printContent = document.querySelector('.print-area');
+
+  if (!printContent) {
+    setNotice('Print report is not available.');
+    return;
   }
+
+  window.print();
+}
 
   // --------------------
   // LOGIN SCREEN
