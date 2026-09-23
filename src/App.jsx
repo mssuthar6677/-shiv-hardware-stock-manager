@@ -959,6 +959,55 @@ const record = {
   // MAIN LAYOUT
   // --------------------
   const printReport = () => {
+    
+const exportExcel = () => {
+  const headers = [
+    'Product',
+    'Category',
+    'PCS / Box',
+    'Box Quantity',
+    'PCS Quantity',
+    ...(showPrice
+      ? ['Rate / PCS', 'Total Amount']
+      : []),
+  ];
+
+  const rows = pdfRows.map((item) => [
+    item.product,
+    item.category || '',
+    item.pcsPerBox,
+    item.available,
+    item.availablePcs,
+    ...(showPrice
+      ? [item.price, item.availableAmount]
+      : []),
+  ]);
+
+  const csv = [headers, ...rows]
+    .map((row) =>
+      row
+        .map((value) => {
+          const text = String(value ?? '');
+          return `"${text.replace(/"/g, '""')}"`;
+        })
+        .join(',')
+    )
+    .join('\r\n');
+
+  const blob = new Blob(
+    ['\uFEFF' + csv],
+    { type: 'text/csv;charset=utf-8;' }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'Shiv-Hardware-Stock-Report.csv';
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
   window.print();
 };
   return (
@@ -1707,6 +1756,14 @@ const record = {
                 >
                   Export / Print PDF
                 </button>
+
+                
+<button
+  className="primary"
+  onClick={exportExcel}
+>
+  Export Excel
+</button>
 
                <div className="table-scroll">
   <StockTable
