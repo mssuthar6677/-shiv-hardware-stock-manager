@@ -380,6 +380,7 @@ export default function App() {
     });
   }
 
+ 
   // --------------------
   // STOCK CALCULATION
   // --------------------
@@ -387,17 +388,20 @@ export default function App() {
   const stock = useMemo(() => {
     const map = new Map();
 
+    // Build stock batches using product, supplier,
+    // category and PCS-per-box.
     data.entries.forEach((entry) => {
       const product = entry.product || 'Unknown';
       const category = entry.category || '';
       const supplier = entry.supplier || '';
       const unit = entry.unit || 'PCS';
+      const pcsPerBox = Math.max(1, num(entry.pcs) || 1);
 
-      // Separate batches by product + supplier + category.
       const key = [
         product,
         supplier,
         category,
+        pcsPerBox,
       ].join('::');
 
       if (!map.has(key)) {
@@ -407,28 +411,31 @@ export default function App() {
           category,
           supplier,
           unit,
+          pcsPerBox,
           incoming: 0,
           outgoing: 0,
+          incomingPcs: 0,
+          outgoingPcs: 0,
           price: num(entry.price),
         });
       }
 
       const row = map.get(key);
+      const boxes = num(entry.boxes);
 
-      row.incoming += num(entry.boxes);
+      row.incoming += boxes;
+      row.incomingPcs += boxes * pcsPerBox;
 
-      if (entry.category) row.category = entry.category;
-      if (entry.supplier) row.supplier = entry.supplier;
-      if (entry.unit) row.unit = entry.unit;
-      if (entry.price !== undefined) row.price = num(entry.price);
+      if (entry.price !== undefined) {
+        row.price = num(entry.price);
+      }
     });
 
-    // For older stock-out records without supplier/category,
-    // distribute the quantity FIFO across matching product batches.
     const batches = [...map.values()];
 
+    // Deduct older Stock Out records by box quantity.
     data.outs.forEach((outEntry) => {
-      let remaining = num(outEntry.boxes);
+      let remainingBoxes = num(outEntry.boxes);
 
       const matching = batches
         .filter((batch) => {
@@ -449,24 +456,41 @@ export default function App() {
         .sort((a, b) => a.key.localeCompare(b.key));
 
       for (const batch of matching) {
-        if (remaining <= 0) break;
+        if (remainingBoxes <= 0) break;
 
-        const available = Math.max(
-          0,
-          batch.incoming - batch.outgoing
+        const availableBoxes =
+          batch.incoming - batch.outgoing;
+
+        const usedBoxes = Math.min(
+          Math.max(0, availableBoxes),
+          remainingBoxes
         );
 
-        const used = Math.min(available, remaining);
+        batch.outgoing += usedBoxes;
+        batch.outgoingPcs +=
+          usedBoxes * batch.pcsPerBox;
 
-        batch.outgoing += used;
-        remaining -= used;
+        remainingBoxes -= usedBoxes;
       }
     });
 
-    return batches.map((batch) => ({
-      ...batch,
-      available: batch.incoming - batch.outgoing,
-    }));
+    return batches.map((batch) => {
+      const available = batch.incoming - batch.outgoing;
+      const availablePcs =
+        batch.incomingPcs - batch.outgoingPcs;
+
+      return {
+        ...batch,
+        available,
+        availablePcs,
+        totalInAmount:
+          batch.incomingPcs * batch.price,
+        totalOutAmount:
+          batch.outgoingPcs * batch.price,
+        availableAmount:
+          availablePcs * batch.price,
+      };
+    });
   }, [data.entries, data.outs]);
 
   const totalAvailable = stock.reduce(
@@ -1378,7 +1402,11 @@ export default function App() {
                   </select>
                 </div>
 
-                <StockTable rows={filteredStock} />
+                <StockTable
+  rows={filteredStock}
+  showParty={true}
+  showPrice={true}
+/>
               </section>
             )}
 
@@ -1748,7 +1776,11 @@ export default function App() {
                 </button>
 
                 <div className="table-scroll">
-                  <StockTable rows={pdfRows} />
+                  <StockTable
+  rows={pdfRows}
+  showParty={showParty}
+  showPrice={showPrice}
+/>
                 </div>
               </section>
             )}
@@ -1885,48 +1917,61 @@ export default function App() {
 // STOCK TABLE
 // --------------------
 
-function StockTable({ rows }) {
-  if (!rows.length) {
+
+  function StockTable({ rows, showParty = true, showPrice = true }) {
+    if (!rows.length) {
+      return (
+        <p className="empty-state">
+          Koi record nahi hai.
+        </p>
+      );
+    }
+
     return (
-      <p className="empty-state">
-        Koi record nahi hai.
-      </p>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              {showParty && <th>Supplier / Party</th>}
+              <th>PCS / Box</th>
+              <th>In Boxes</th>
+              <th>In PCS</th>
+              <th>Out Boxes</th>
+              <th>Out PCS</th>
+              <th>Available Boxes</th>
+              <th>Available PCS</th>
+              {showPrice && <th>PCS Rate</th>}
+              {showPrice && <th>Available Amount</th>}
+            </tr>
+          </thead>
+
+          <tbody>
+            {rows.map((item) => (
+              <tr key={item.key}>
+                <td>{item.product}</td>
+                <td>{item.category || '—'}</td>
+                {showParty && (
+                  <td>{item.supplier || '—'}</td>
+                )}
+                <td>{item.pcsPerBox}</td>
+                <td>{item.incoming}</td>
+                <td>{item.incomingPcs}</td>
+                <td>{item.outgoing}</td>
+                <td>{item.outgoingPcs}</td>
+                <td>{item.available}</td>
+                <td><b>{item.availablePcs}</b></td>
+                {showPrice && (
+                  <td>{money(item.price)}</td>
+                )}
+                {showPrice && (
+                  <td>{money(item.availableAmount)}</td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   }
-
-  return (
-    <div className="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Category</th>
-            <th>Supplier / Party</th>
-            <th>Unit</th>
-            <th>Stock In</th>
-            <th>Stock Out</th>
-            <th>Available</th>
-            <th>Price</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {rows.map((item) => (
-            <tr key={item.key}>
-              <td>{item.product}</td>
-              <td>{item.category || '—'}</td>
-              <td>{item.supplier || '—'}</td>
-              <td>{item.unit || 'PCS'}</td>
-              <td>{item.incoming}</td>
-              <td>{item.outgoing}</td>
-              <td>
-                <b>{item.available}</b>
-              </td>
-              <td>{money(item.price)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
