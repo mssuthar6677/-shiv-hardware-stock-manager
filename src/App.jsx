@@ -1775,13 +1775,12 @@ export default function App() {
                   Export / Print PDF
                 </button>
 
-                <div className="table-scroll">
-                  <StockTable
-  rows={pdfRows}
-  showParty={showParty}
-  showPrice={showPrice}
-/>
-                </div>
+               <div className="table-scroll">
+  <StockTable
+    rows={pdfRows}
+    showPrice={showPrice}
+  />
+</div>
               </section>
             )}
           </>
@@ -1809,51 +1808,75 @@ export default function App() {
             </p>
           )}
 
-          <table>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Category</th>
+          
+<table>
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Category</th>
+      <th>PCS / Box</th>
+      <th>Box Quantity</th>
+      <th>PCS Quantity</th>
 
-                {showParty && <th>Party</th>}
+      {showPrice && (
+        <>
+          <th>Rate / PCS</th>
+          <th>Total Amount</th>
+        </>
+      )}
+    </tr>
+  </thead>
 
-                <th>Stock In</th>
-                <th>Stock Out</th>
-                <th>Available</th>
+  <tbody>
+    {pdfRows.map((item) => (
+      <tr key={item.key}>
+        <td>{item.product}</td>
+        <td>{item.category || '—'}</td>
+        <td>{item.pcsPerBox}</td>
+        <td>{item.available}</td>
+        <td>{item.availablePcs}</td>
 
-                {showPrice && <th>Price</th>}
-              </tr>
-            </thead>
+        {showPrice && (
+          <>
+            <td>{money(item.price)}</td>
+            <td>{money(item.availableAmount)}</td>
+          </>
+        )}
+      </tr>
+    ))}
+  </tbody>
+</table>
 
-            <tbody>
-              {pdfRows.map((item) => (
-                <tr key={item.key}>
-                  <td>{item.product}</td>
-                  <td>{item.category || '—'}</td>
+          
+<div className="report-totals">
+  <p>
+    Total Boxes:{' '}
+    {pdfRows.reduce(
+      (sum, item) => sum + item.available,
+      0
+    )}
+  </p>
 
-                  {showParty && (
-                    <td>{item.supplier || '—'}</td>
-                  )}
+  <p>
+    Total PCS:{' '}
+    {pdfRows.reduce(
+      (sum, item) => sum + item.availablePcs,
+      0
+    )}
+  </p>
 
-                  <td>{item.incoming}</td>
-                  <td>{item.outgoing}</td>
-                  <td>{item.available}</td>
-
-                  {showPrice && (
-                    <td>{money(item.price)}</td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <p>
-            Total Available Quantity:{' '}
-            {pdfRows.reduce(
-              (sum, item) => sum + item.available,
-              0
-            )}
-          </p>
+  {showPrice && (
+    <p>
+      Total Amount:{' '}
+      {money(
+        pdfRows.reduce(
+          (sum, item) => sum + item.availableAmount,
+          0
+        )
+      )}
+    </p>
+  )}
+</div>
         </section>
         {/* QUICK ADD MASTER MODAL */}
 {quickAdd.type && (
