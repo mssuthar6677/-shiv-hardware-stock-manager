@@ -822,7 +822,7 @@ export default function App() {
           a.product.localeCompare(b.product)
         );
     }
-
+    result = result.filter((item) => Number(item.available) > 0);
     return result;
   }, [
     stock,
@@ -862,16 +862,7 @@ export default function App() {
     pdfOnlyAvailable,
   ]);
 
-  function printReport() {
-  const printContent = document.querySelector('.print-area');
-
-  if (!printContent) {
-    setNotice('Print report is not available.');
-    return;
-  }
-
-  window.print();
-}
+  
 
   // --------------------
   // LOGIN SCREEN
@@ -917,7 +908,9 @@ export default function App() {
 
           {notice && <p className="notice">{notice}</p>}
         </form>
-        {quickAdd.type && (
+        {/* QUICK ADD MASTER MODAL */}
+
+{quickAdd.type && (
   <div className="quick-modal-backdrop">
     <form
       className="quick-modal"

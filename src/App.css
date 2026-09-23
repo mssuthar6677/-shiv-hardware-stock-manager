@@ -340,3 +340,45 @@ button {
     min-width: 650px;
   }
 }
+/* Mobile dashboard compact layout */
+@media (max-width: 650px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 12px;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .stat-card span {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .stat-card strong {
+    font-size: 21px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .dashboard-grid > .panel.wide {
+    grid-column: 1 / -1;
+    padding: 13px;
+  }
+
+  .dashboard-grid .panel-heading {
+    gap: 6px;
+  }
+
+  .dashboard-grid .panel-heading h2 {
+    font-size: 16px;
+    margin: 0;
+  }
+
+  .dashboard-grid .muted {
+    font-size: 11px;
+  }
+}
