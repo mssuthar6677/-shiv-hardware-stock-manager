@@ -1114,15 +1114,18 @@ export default function App() {
 
                   <label>
                     Party
-                    <select
+                    <input
+                      type="text"
+                      list="stock-in-party-options"
+                      placeholder="Type party name..."
                       value={form.supplier}
                       onChange={(event) => setForm({ ...form, supplier: event.target.value })}
-                    >
-                      <option value="">Select party</option>
-                      {data.suppliers.map((item) => (
-                        <option key={item} value={item}>{item}</option>
+                    />
+                    <datalist id="stock-in-party-options">
+                      {[...new Set(data.suppliers)].sort().map((item) => (
+                        <option key={item} value={item} />
                       ))}
-                    </select>
+                    </datalist>
                   </label>
 
                   <button type="submit" disabled={busy}>
@@ -1141,7 +1144,10 @@ export default function App() {
                 <form className="form-grid" onSubmit={addOut}>
                   <label>
                     Product
-                    <select
+                    <input
+                      type="text"
+                      list="stock-out-product-options"
+                      placeholder="Type product name..."
                       value={out.product}
                       onChange={(event) =>
                         setOut({
@@ -1151,24 +1157,24 @@ export default function App() {
                         })
                       }
                       required
-                    >
-                      <option value="">Select product</option>
-
+                    />
+                    <datalist id="stock-out-product-options">
                       {[...new Set(
                         stock
                           .filter((item) => item.available > 0)
                           .map((item) => item.product)
                       )].sort().map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
+                        <option key={item} value={item} />
                       ))}
-                    </select>
+                    </datalist>
                   </label>
 
                   <label>
                     Supplier / Party
-                    <select
+                    <input
+                      type="text"
+                      list="stock-out-party-options"
+                      placeholder="Type party name..."
                       value={out.supplier}
                       onChange={(event) =>
                         setOut({
@@ -1176,9 +1182,8 @@ export default function App() {
                           supplier: event.target.value,
                         })
                       }
-                    >
-                      <option value="">All parties</option>
-
+                    />
+                    <datalist id="stock-out-party-options">
                       {[...new Set(
                         stock
                           .filter(
@@ -1189,11 +1194,9 @@ export default function App() {
                           .map((item) => item.supplier)
                           .filter(Boolean)
                       )].sort().map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
+                        <option key={item} value={item} />
                       ))}
-                    </select>
+                    </datalist>
                   </label>
 
                   <label>
