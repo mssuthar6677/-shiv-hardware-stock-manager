@@ -928,7 +928,9 @@ export default function App() {
   // --------------------
   // MAIN LAYOUT
   // --------------------
-
+  const printReport = () => {
+  window.print();
+};
   return (
     <div className="app-shell">
       <aside className="sidebar">
