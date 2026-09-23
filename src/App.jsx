@@ -122,12 +122,14 @@ export default function App() {
     note: '',
   });
 
-  const [out, setOut] = useState({
-    product: '',
-    supplier: '',
-    boxes: '',
-    note: '',
-  });
+  
+const [out, setOut] = useState({
+  product: '',
+  supplier: '',
+  staffName: '',
+  boxes: '',
+  note: '',
+});
 
   // PDF/report controls
   const [pdfCategory, setPdfCategory] = useState('all');
@@ -1066,6 +1068,30 @@ export default function App() {
                       ))}
                     </datalist>
                   </label>
+                  
+<label>
+  Category
+  <input
+    type="text"
+    list="stock-in-category-options"
+    placeholder="Type category name..."
+    value={form.category}
+    onChange={(event) =>
+      setForm({
+        ...form,
+        category: event.target.value,
+      })
+    }
+  />
+
+  <datalist id="stock-in-category-options">
+    {[...new Set(data.categories)]
+      .sort()
+      .map((item) => (
+        <option key={item} value={item} />
+      ))}
+  </datalist>
+</label>
 
                   <label>
                     PCS / Box
