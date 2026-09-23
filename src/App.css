@@ -382,3 +382,54 @@ button {
     font-size: 11px;
   }
 }
+/* ===== PDF / PRINT FIX ===== */
+
+.print-area {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+
+  .print-area {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    color: #000 !important;
+    background: #fff !important;
+    font-size: 12px !important;
+  }
+
+  .print-area table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .print-area th,
+  .print-area td {
+    border: 1px solid #000 !important;
+    padding: 6px !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  .print-area h1,
+  .print-area h2,
+  .print-area p {
+    color: #000 !important;
+  }
+}

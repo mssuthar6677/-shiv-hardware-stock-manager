@@ -910,54 +910,7 @@ export default function App() {
         </form>
         {/* QUICK ADD MASTER MODAL */}
 
-{quickAdd.type && (
-  <div className="quick-modal-backdrop">
-    <form
-      className="quick-modal"
-      onSubmit={addQuickMaster}
-    >
-      <h2>
-        Add {
-          quickAdd.type === 'products'
-            ? 'Product'
-            : quickAdd.type === 'categories'
-            ? 'Category'
-            : quickAdd.type === 'suppliers'
-            ? 'Supplier / Party'
-            : 'Unit'
-        }
-      </h2>
 
-      <input
-        autoFocus
-        value={quickAdd.value}
-        onChange={(e) =>
-          setQuickAdd({
-            ...quickAdd,
-            value: e.target.value,
-          })
-        }
-        placeholder="Naam enter karein"
-        required
-      />
-
-      <div className="quick-modal-actions">
-        <button
-          type="button"
-          onClick={() =>
-            setQuickAdd({ type: '', value: '' })
-          }
-        >
-          Cancel
-        </button>
-
-        <button type="submit" disabled={busy}>
-          {busy ? 'Saving…' : 'Add'}
-        </button>
-      </div>
-    </form>
-  </div>
-)}
       </main>
     );
   }
@@ -1868,6 +1821,55 @@ export default function App() {
             )}
           </p>
         </section>
+        {/* QUICK ADD MASTER MODAL */}
+{quickAdd.type && (
+  <div className="quick-modal-backdrop">
+    <form
+      className="quick-modal"
+      onSubmit={addQuickMaster}
+    >
+      <h2>
+        Add {
+          quickAdd.type === 'products'
+            ? 'Product'
+            : quickAdd.type === 'categories'
+            ? 'Category'
+            : quickAdd.type === 'suppliers'
+            ? 'Supplier / Party'
+            : 'Unit'
+        }
+      </h2>
+
+      <input
+        autoFocus
+        value={quickAdd.value}
+        onChange={(e) =>
+          setQuickAdd({
+            ...quickAdd,
+            value: e.target.value,
+          })
+        }
+        placeholder="Naam enter karein"
+        required
+      />
+
+      <div className="quick-modal-actions">
+        <button
+          type="button"
+          onClick={() =>
+            setQuickAdd({ type: '', value: '' })
+          }
+        >
+          Cancel
+        </button>
+
+        <button type="submit" disabled={busy}>
+          {busy ? 'Saving…' : 'Add'}
+        </button>
+      </div>
+    </form>
+  </div>
+)}
 
         <footer>
           Shiv Hardware Stock Manager · Shared data sync
