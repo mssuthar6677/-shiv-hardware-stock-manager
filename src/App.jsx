@@ -520,9 +520,9 @@ export default function App() {
   async function addIn(event) {
     event.preventDefault();
 
-    if (!form.product.trim() || num(form.boxes) <= 0 || !form.supplier) {
+    if (!form.product.trim() || num(form.boxes) <= 0) {
       return setNotice(
-        'Product, party aur valid box quantity bharna zaroori hai'
+        'Product aur valid quantity bharna zaroori hai'
       );
     }
 
@@ -538,8 +538,17 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
+    const category = form.category.trim();
+
+    const categories = category && !data.categories.some(
+      (item) => item.toLowerCase() === category.toLowerCase()
+    )
+      ? [...data.categories, category]
+      : data.categories;
+
     const success = await save({
       ...data,
+      categories,
       entries: [...data.entries, entry],
     }, 'Stock In successfully save ho gaya');
 
@@ -1038,149 +1047,85 @@ export default function App() {
             )}
 
             {/* STOCK IN */}
-
             {page === 'in' && (
               <section className="panel">
                 <h2>Add Stock In</h2>
-
                 <form className="form-grid" onSubmit={addIn}>
                   <label>
                     Product
                     <input
                       list="product-options"
                       value={form.product}
-                      onChange={(event) =>
-                        selectProductForStockIn(event.target.value)
-                      }
+                      onChange={(event) => selectProductForStockIn(event.target.value)}
+                      placeholder="Product name"
                       required
-                      placeholder="Product name (type to search)"
                     />
                     <datalist id="product-options">
-                      {productList
-                        .filter((item) =>
-                          item.name.toLowerCase().includes(form.product.trim().toLowerCase())
-                        )
-                        .map((item) => (
-                          <option key={item.id} value={item.name} />
-                        ))}
+                      {productList.map((item) => (
+                        <option key={item.id} value={item.name} />
+                      ))}
                     </datalist>
                   </label>
 
                   <label>
-  Supplier / Party
-  <div className="quick-select">
-    <select
-      value={form.supplier}
-      onChange={(e) =>
-        setForm({ ...form, supplier: e.target.value })
-      }
-    >
-      <option value="">Select supplier</option>
-      {data.suppliers.map((item) => (
-        <option key={item} value={item}>{item}</option>
-      ))}
-    </select>
-
-    <button
-      type="button"
-      className="quick-add-btn"
-      onClick={() =>
-        setQuickAdd({ type: 'suppliers', value: '' })
-      }
-    >
-      +
-    </button>
-  </div>
-</label>
-
-                  <label>
-  Unit
-  <div className="quick-select">
-    <select
-      value={form.unit}
-      onChange={(e) =>
-        setForm({ ...form, unit: e.target.value })
-      }
-    >
-      {data.units.map((item) => (
-        <option key={item} value={item}>{item}</option>
-      ))}
-    </select>
-
-    <button
-      type="button"
-      className="quick-add-btn"
-      onClick={() =>
-        setQuickAdd({ type: 'units', value: '' })
-      }
-    >
-      +
-    </button>
-  </div>
-</label>
-
-                  <label>
-                    Boxes / Quantity
-                    <input
-                      type="number"
-                      min="1"
-                      value={form.boxes}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          boxes: event.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </label>
-
-                  <label>
-                    Units per Box
+                    PCS / Box
                     <input
                       type="number"
                       min="1"
                       value={form.pcs}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          pcs: event.target.value,
-                        })
-                      }
+                      onChange={(event) => setForm({ ...form, pcs: event.target.value })}
                       required
                     />
                   </label>
 
                   <label>
-                    Unit Price (₹)
+                    Unit
+                    <select
+                      value={form.unit}
+                      onChange={(event) => setForm({ ...form, unit: event.target.value })}
+                    >
+                      {data.units.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    Price / PCS (₹)
                     <input
                       type="number"
                       min="0"
                       step="0.01"
                       value={form.price}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          price: event.target.value,
-                        })
-                      }
+                      onChange={(event) => setForm({ ...form, price: event.target.value })}
                     />
                   </label>
 
                   <label>
-                    Note
+                    Box
                     <input
-                      value={form.note}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          note: event.target.value,
-                        })
-                      }
+                      type="number"
+                      min="1"
+                      value={form.boxes}
+                      onChange={(event) => setForm({ ...form, boxes: event.target.value })}
+                      required
                     />
                   </label>
 
-                  <button disabled={busy}>
+                  <label>
+                    Party
+                    <select
+                      value={form.supplier}
+                      onChange={(event) => setForm({ ...form, supplier: event.target.value })}
+                    >
+                      <option value="">Select party</option>
+                      {data.suppliers.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <button type="submit" disabled={busy}>
                     {busy ? 'Saving…' : 'Save Stock In'}
                   </button>
                 </form>
@@ -1465,76 +1410,73 @@ export default function App() {
                     onSubmit={addProduct}
                   >
                     <label>
-                    PCS / Box
-                    <input
-                      type="number"
-                      min="1"
-                      value={form.pcs}
-                      onChange={(event) =>
-                        setForm({ ...form, pcs: event.target.value })
-                      }
-                      required
-                    />
-                  </label>
+                      Product Name
+                      <input
+                        value={productDraft.name}
+                        onChange={(event) =>
+                          setProductDraft({
+                            ...productDraft,
+                            name: event.target.value,
+                          })
+                        }
+                        placeholder="Product name"
+                        required
+                      />
+                    </label>
 
-                  <label>
-                    Unit
-                    <select
-                      value={form.unit}
-                      onChange={(event) =>
-                        setForm({ ...form, unit: event.target.value })
-                      }
-                      required
-                    >
-                      {data.units.map((item) => (
-                        <option key={item} value={item}>{item}</option>
-                      ))}
-                    </select>
-                  </label>
+                    <label>
+                      Existing Category
+                      <select
+                        value={productDraft.category}
+                        onChange={(event) =>
+                          setProductDraft({
+                            ...productDraft,
+                            category: event.target.value,
+                            newCategory: '',
+                          })
+                        }
+                      >
+                        <option value="">Select category</option>
+                        {data.categories.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
 
-                  <label>
-                    Price / PCS (₹)
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.price}
-                      onChange={(event) =>
-                        setForm({ ...form, price: event.target.value })
-                      }
-                    />
-                  </label>
+                    <label>
+                      Or Add New Category
+                      <input
+                        value={productDraft.newCategory}
+                        onChange={(event) =>
+                          setProductDraft({
+                            ...productDraft,
+                            newCategory: event.target.value,
+                          })
+                        }
+                        placeholder="New category"
+                      />
+                    </label>
 
-                  <label>
-                    Box
-                    <input
-                      type="number"
-                      min="1"
-                      value={form.boxes}
-                      onChange={(event) =>
-                        setForm({ ...form, boxes: event.target.value })
-                      }
-                      required
-                    />
-                  </label>
+                    <label>
+                      Default Price (₹)
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={productDraft.price}
+                        onChange={(event) =>
+                          setProductDraft({
+                            ...productDraft,
+                            price: event.target.value,
+                          })
+                        }
+                        placeholder="0.00"
+                      />
+                    </label>
 
-                  <label>
-                    Party
-                    <select
-                      value={form.supplier}
-                      onChange={(event) =>
-                        setForm({ ...form, supplier: event.target.value })
-                      }
-                      required
-                    >
-                      <option value="">Select party</option>
-                      {data.suppliers.map((item) => (
-                        <option key={item} value={item}>{item}</option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <button disabled={busy}>
+                    <button disabled={busy}>
                       {busy ? 'Saving…' : 'Add Product'}
                     </button>
                   </form>
