@@ -588,7 +588,7 @@ const [out, setOut] = useState({
 
   async function addOut(event) {
     event.preventDefault();
-
+     
     const quantity = num(out.boxes);
 
     if (!out.product || quantity <= 0) {
@@ -600,25 +600,29 @@ const [out, setOut] = useState({
         `Available stock ${availableForOut} hai`
       );
     }
-
-    const record = {
-      ...out,
-      id: makeId(),
-      boxes: quantity,
-      createdAt: new Date().toISOString(),
-    };
+     
+    
+const record = {
+  ...out,
+  id: makeId(),
+  staffName: out.staffName.trim(),
+  boxes: quantity,
+  createdAt: new Date().toISOString(),
+};
 
     const success = await save({
       ...data,
       outs: [...data.outs, record],
     }, 'Stock Out successfully save ho gaya');
+    
 
     if (success) {
       setOut({
-        product: '',
-        supplier: '',
-        boxes: '',
-        note: '',
+      product: '',
+      supplier: '',
+      staffName: '',
+      boxes: '',
+      note: '',
       });
     }
   }
@@ -1195,35 +1199,34 @@ const [out, setOut] = useState({
                     </datalist>
                   </label>
 
-                  <label>
-                    Supplier / Party
-                    <input
-                      type="text"
-                      list="stock-out-party-options"
-                      placeholder="Type party name..."
-                      value={out.supplier}
-                      onChange={(event) =>
-                        setOut({
-                          ...out,
-                          supplier: event.target.value,
-                        })
-                      }
-                    />
-                    <datalist id="stock-out-party-options">
-                      {[...new Set(
-                        stock
-                          .filter(
-                            (item) =>
-                              item.product === out.product &&
-                              item.available > 0
-                          )
-                          .map((item) => item.supplier)
-                          .filter(Boolean)
-                      )].sort().map((item) => (
-                        <option key={item} value={item} />
-                      ))}
-                    </datalist>
-                  </label>
+                  
+<label>
+  Staff Name
+  <input
+    type="text"
+    list="stock-out-staff-options"
+    placeholder="Type staff name..."
+    value={out.staffName}
+    onChange={(event) =>
+      setOut({
+        ...out,
+        staffName: event.target.value,
+      })
+    }
+  />
+
+  <datalist id="stock-out-staff-options">
+    {[...new Set(
+      data.outs
+        .map((item) => item.staffName)
+        .filter(Boolean)
+    )]
+      .sort()
+      .map((item) => (
+        <option key={item} value={item} />
+      ))}
+  </datalist>
+</label>
 
                   <label>
                     Available Quantity
