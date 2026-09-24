@@ -640,3 +640,37 @@ button {
     margin: 4px 0;
   }
 }
+/* =========================
+   EDIT MODAL MOBILE FIX
+   ========================= */
+
+.edit-modal input,
+.edit-modal select,
+.edit-modal textarea {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  background: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.edit-modal input::placeholder,
+.edit-modal textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.edit-modal select {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+@media (max-width: 600px) {
+  .edit-modal input,
+  .edit-modal select,
+  .edit-modal textarea {
+    color: #111827 !important;
+    -webkit-text-fill-color: #111827 !important;
+    background: #ffffff !important;
+    opacity: 1 !important;
+  }
+}
