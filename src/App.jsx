@@ -958,15 +958,17 @@ const record = {
   // --------------------
   // MAIN LAYOUT
   // --------------------
-  const printReport = () => {
-    
+// --------------------
+// MAIN LAYOUT
+// --------------------
+
 const exportExcel = () => {
   const headers = [
     'Product',
     'Category',
     'PCS / Box',
-    'Box Quantity',
-    'PCS Quantity',
+    'Available Stock',
+    'Available PCS',
     ...(showPrice
       ? ['Rate / PCS', 'Total Amount']
       : []),
@@ -996,7 +998,9 @@ const exportExcel = () => {
 
   const blob = new Blob(
     ['\uFEFF' + csv],
-    { type: 'text/csv;charset=utf-8;' }
+    {
+      type: 'text/csv;charset=utf-8;',
+    }
   );
 
   const url = URL.createObjectURL(blob);
@@ -1004,10 +1008,15 @@ const exportExcel = () => {
 
   link.href = url;
   link.download = 'Shiv-Hardware-Stock-Report.csv';
+
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 
   URL.revokeObjectURL(url);
 };
+
+const printReport = () => {
   window.print();
 };
   return (
