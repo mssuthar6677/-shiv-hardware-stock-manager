@@ -1,5 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as XLSX from 'xlsx';
 import './App.css';
 
 // --------------------
@@ -985,35 +986,38 @@ const exportExcel = () => {
       : []),
   ]);
 
-  const csv = [headers, ...rows]
-    .map((row) =>
-      row
-        .map((value) => {
-          const text = String(value ?? '');
-          return `"${text.replace(/"/g, '""')}"`;
-        })
-        .join(',')
-    )
-    .join('\r\n');
+  const worksheetData = [headers, ...rows];
 
-  const blob = new Blob(
-    ['\uFEFF' + csv],
-    {
-      type: 'text/csv;charset=utf-8;',
-    }
+  const worksheet = XLSX.utils.aoa_to_sheet(
+    worksheetData
   );
 
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  worksheet['!cols'] = [
+    { wch: 28 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 16 },
+    { wch: 16 },
+    ...(showPrice
+      ? [
+          { wch: 14 },
+          { wch: 18 },
+        ]
+      : []),
+  ];
 
-  link.href = url;
-  link.download = 'Shiv-Hardware-Stock-Report.csv';
+  const workbook = XLSX.utils.book_new();
 
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    'Current Stock'
+  );
 
-  URL.revokeObjectURL(url);
+  XLSX.writeFile(
+    workbook,
+    'Shiv-Hardware-Stock-Report.xlsx'
+  );
 };
 
 const printReport = () => {
