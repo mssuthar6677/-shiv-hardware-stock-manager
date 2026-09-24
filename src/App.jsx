@@ -138,6 +138,8 @@ const [out, setOut] = useState({
   const [showParty, setShowParty] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
   const [pdfOnlyAvailable, setPdfOnlyAvailable] = useState(false);
+  const [editingStockIn, setEditingStockIn] = useState(null);
+  const [editingStockOut, setEditingStockOut] = useState(null);
 
   // --------------------
   // API
@@ -1438,11 +1440,17 @@ const printReport = () => {
                           <td>{money(item.price)}</td>
                           <td>
                             <button
-                              className="danger"
-                              onClick={() => deleteEntry(item)}
-                            >
-                              Delete
-                            </button>
+  onClick={() => setEditingStockIn(item)}
+>
+  Edit
+</button>
+
+<button
+  className="danger"
+  onClick={() => deleteEntry(item)}
+>
+  Delete
+</button>
                           </td>
                         </tr>
                       ))}
@@ -1475,11 +1483,17 @@ const printReport = () => {
                           <td>{item.note || '—'}</td>
                           <td>
                             <button
-                              className="danger"
-                              onClick={() => deleteOut(item)}
-                            >
-                              Delete
-                            </button>
+  onClick={() => setEditingStockOut(item)}
+>
+  Edit
+</button>
+
+<button
+  className="danger"
+  onClick={() => deleteOut(item)}
+>
+  Delete
+</button>
                           </td>
                         </tr>
                       ))}
