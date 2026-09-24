@@ -1765,6 +1765,12 @@ const printReport = () => {
                 >
                   Export / Print PDF
                 </button>
+               <button
+                  className="primary"
+                  onClick={exportExcel}
+                >
+                  Export Excel
+                </button>
 
                <div className="table-scroll">
   <StockTable
