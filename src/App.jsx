@@ -92,6 +92,8 @@ export default function App() {
 
   const [search, setSearch] = useState('');
   const [historySearch, setHistorySearch] = useState('');
+  const [historyFromDate, setHistoryFromDate] = useState('');
+  const [historyToDate, setHistoryToDate] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [supplierFilter, setSupplierFilter] = useState('all');
 
@@ -1045,13 +1047,25 @@ const record = {
 const filteredHistoryEntries = useMemo(() => {
   const query = historySearch.trim().toLowerCase();
 
-  if (!query) {
-    return [...data.entries].reverse();
-  }
-
   return [...data.entries]
     .reverse()
     .filter((item) => {
+      const itemDate = item.createdAt
+        ? new Date(item.createdAt).toISOString().slice(0, 10)
+        : '';
+
+      if (historyFromDate && itemDate < historyFromDate) {
+        return false;
+      }
+
+      if (historyToDate && itemDate > historyToDate) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
       const searchableText = [
         item.product,
         item.category,
@@ -1068,18 +1082,35 @@ const filteredHistoryEntries = useMemo(() => {
 
       return searchableText.includes(query);
     });
-}, [data.entries, historySearch]);
+}, [
+  data.entries,
+  historySearch,
+  historyFromDate,
+  historyToDate,
+]);
 
 const filteredHistoryOuts = useMemo(() => {
   const query = historySearch.trim().toLowerCase();
 
-  if (!query) {
-    return [...data.outs].reverse();
-  }
-
   return [...data.outs]
     .reverse()
     .filter((item) => {
+      const itemDate = item.createdAt
+        ? new Date(item.createdAt).toISOString().slice(0, 10)
+        : '';
+
+      if (historyFromDate && itemDate < historyFromDate) {
+        return false;
+      }
+
+      if (historyToDate && itemDate > historyToDate) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
       const searchableText = [
         item.product,
         item.staffName,
@@ -1094,7 +1125,12 @@ const filteredHistoryOuts = useMemo(() => {
 
       return searchableText.includes(query);
     });
-}, [data.outs, historySearch]);
+}, [
+  data.outs,
+  historySearch,
+  historyFromDate,
+  historyToDate,
+]);
 
   // --------------------
   // PDF REPORT
@@ -1672,6 +1708,43 @@ const printReport = () => {
           </button>
         )}
       </div>
+    </div>
+
+        <div className="history-date-filter">
+      <label>
+        From Date
+        <input
+          type="date"
+          value={historyFromDate}
+          onChange={(event) =>
+            setHistoryFromDate(event.target.value)
+          }
+        />
+      </label>
+
+      <label>
+        To Date
+        <input
+          type="date"
+          value={historyToDate}
+          onChange={(event) =>
+            setHistoryToDate(event.target.value)
+          }
+        />
+      </label>
+
+      {(historyFromDate || historyToDate) && (
+        <button
+          type="button"
+          className="list-toggle-btn"
+          onClick={() => {
+            setHistoryFromDate('');
+            setHistoryToDate('');
+          }}
+        >
+          Clear Date
+        </button>
+      )}
     </div>
 
     <h2>History — Stock In</h2>
