@@ -1629,9 +1629,9 @@ const printReport = () => {
                 </div>
 
                 <StockTable
-  rows={pdfRows}
-  showParty={showParty}
-  showPrice={showPrice}
+  rows={filteredStock}
+  showParty={true}
+  showPrice={true}
 />
               </section>
             )}
