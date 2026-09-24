@@ -1736,7 +1736,7 @@ const printReport = () => {
       {(historyFromDate || historyToDate) && (
         <button
           type="button"
-          className="list-toggle-btn"
+          className="history-clear-date"
           onClick={() => {
             setHistoryFromDate('');
             setHistoryToDate('');
