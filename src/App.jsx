@@ -1757,8 +1757,9 @@ const printReport = () => {
                         <th>Product</th>
                         <th>Category</th>
                         <th>Supplier</th>
-                        <th>Qty</th>
-                        <th>Unit</th>
+                        <th>Unit / Box</th>
+                        <th>Box</th>
+                        <th>Total Unit</th>
                         <th>Price</th>
                         <th></th>
                       </tr>
@@ -1771,8 +1772,9 @@ const printReport = () => {
                           <td>{item.product}</td>
                           <td>{item.category || '—'}</td>
                           <td>{item.supplier || '—'}</td>
+                          <td>{item.pcs} {item.unit || 'PCS'}</td>
                           <td>{item.boxes}</td>
-                          <td>{item.unit || 'PCS'}</td>
+                          <td>{num(item.pcs) * num(item.boxes)} {item.unit || 'PCS'}</td>
                           <td>{money(item.price)}</td>
                           <td>
                             <button
