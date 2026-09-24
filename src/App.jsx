@@ -91,6 +91,7 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
 
   const [search, setSearch] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [supplierFilter, setSupplierFilter] = useState('all');
 
@@ -1022,6 +1023,64 @@ const record = {
   ]);
 
   // --------------------
+// HISTORY SEARCH
+// --------------------
+
+const filteredHistoryEntries = useMemo(() => {
+  const query = historySearch.trim().toLowerCase();
+
+  if (!query) {
+    return [...data.entries].reverse();
+  }
+
+  return [...data.entries]
+    .reverse()
+    .filter((item) => {
+      const searchableText = [
+        item.product,
+        item.category,
+        item.supplier,
+        item.note,
+        item.unit,
+        item.price,
+        item.boxes,
+        item.createdAt,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(query);
+    });
+}, [data.entries, historySearch]);
+
+const filteredHistoryOuts = useMemo(() => {
+  const query = historySearch.trim().toLowerCase();
+
+  if (!query) {
+    return [...data.outs].reverse();
+  }
+
+  return [...data.outs]
+    .reverse()
+    .filter((item) => {
+      const searchableText = [
+        item.product,
+        item.staffName,
+        item.supplier,
+        item.note,
+        item.boxes,
+        item.createdAt,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(query);
+    });
+}, [data.outs, historySearch]);
+
+  // --------------------
   // PDF REPORT
   // --------------------
 
@@ -1566,8 +1625,42 @@ const printReport = () => {
             {/* HISTORY */}
 
             {page === 'history' && (
-              <section className="panel">
-                <h2>History — Stock In</h2>
+  <section className="panel">
+
+    <div className="history-header">
+      <div>
+        <h2>Stock History</h2>
+        <p className="muted">
+          Search your Stock In and Stock Out records
+        </p>
+      </div>
+
+      <div className="history-search">
+        <span>🔍</span>
+
+        <input
+          type="text"
+          placeholder="Search product, staff, party, note..."
+          value={historySearch}
+          onChange={(event) =>
+            setHistorySearch(event.target.value)
+          }
+        />
+
+        {historySearch && (
+          <button
+            type="button"
+            className="history-search-clear"
+            onClick={() => setHistorySearch('')}
+            title="Clear search"
+          >
+            ×
+          </button>
+        )}
+      </div>
+    </div>
+
+    <h2>History — Stock In</h2>
 
                 <div className="table-scroll">
                   <table>
@@ -1585,7 +1678,7 @@ const printReport = () => {
                     </thead>
 
                     <tbody>
-                      {[...data.entries].reverse().map((item) => (
+                      {filteredHistoryEntries.map((item) => (
                         <tr key={item.id}>
                           <td>{formatDate(item.createdAt)}</td>
                           <td>{item.product}</td>
@@ -1625,7 +1718,7 @@ const printReport = () => {
                       <tr>
                         <th>Date</th>
                         <th>Product</th>
-                        <th>Party</th>
+                        <th>staffName</th>
                         <th>Qty</th>
                         <th>Note</th>
                         <th></th>
@@ -1633,11 +1726,11 @@ const printReport = () => {
                     </thead>
 
                     <tbody>
-                      {[...data.outs].reverse().map((item) => (
+                      {filteredHistoryOuts.map((item) => (
                         <tr key={item.id}>
                           <td>{formatDate(item.createdAt)}</td>
                           <td>{item.product}</td>
-                          <td>{item.supplier || '—'}</td>
+                          <td>{item.staffName || '—'}</td>
                           <td>{item.boxes}</td>
                           <td>{item.note || '—'}</td>
                           <td>
