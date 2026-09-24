@@ -106,6 +106,12 @@ export default function App() {
   type: '',
   value: '',
   });
+  const [showProductList, setShowProductList] = useState(false);
+  const [showMasterLists, setShowMasterLists] = useState({
+  categories: false,
+  suppliers: false,
+  units: false,
+  });
   const [productDraft, setProductDraft] = useState({
     name: '',
     category: '',
@@ -1854,96 +1860,131 @@ const printReport = () => {
                 </section>
 
                 <section className="panel">
-                  <div className="panel-heading">
-                    <h2>Product List</h2>
-                    <span className="muted">
-                      {productList.length} products
-                    </span>
-                  </div>
+  <div className="panel-heading">
+    <div>
+      <h2>Product List</h2>
+      <span className="muted">
+        {productList.length} products
+      </span>
+    </div>
 
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Product</th>
-                          <th>Category</th>
-                          <th>Default Price</th>
-                          <th></th>
-                        </tr>
-                      </thead>
+    <button
+      type="button"
+      onClick={() =>
+        setShowProductList((previous) => !previous)
+      }
+    >
+      {showProductList ? 'Hide Product List' : 'Show Product List'}
+    </button>
+  </div>
 
-                      <tbody>
-                        {productList.map((item) => (
-                          <tr key={item.id}>
-                            <td>{item.name}</td>
-                            <td>{item.category || '—'}</td>
-                            <td>{money(item.price)}</td>
-                            <td>
-                              <button
-                                className="danger"
-                                onClick={() => deleteProduct(item)}
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
+  {showProductList && (
+    <div className="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Default Price</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {productList.map((item) => (
+            <tr key={item.id}>
+              <td>{item.name}</td>
+              <td>{item.category || '—'}</td>
+              <td>{money(item.price)}</td>
+              <td>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => deleteProduct(item)}
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</section>
 
                 <div className="master-grid">
-                  {[
-                    ['categories', 'Categories'],
-                    ['suppliers', 'Suppliers / Parties'],
-                    ['units', 'Units'],
-                  ].map(([type, title]) => (
-                    <section
-                      className="panel master-card"
-                      key={type}
-                    >
-                      <h2>{title}</h2>
+  {[
+    ['categories', 'Categories'],
+    ['suppliers', 'Suppliers / Parties'],
+    ['units', 'Units'],
+  ].map(([type, title]) => (
+    <section
+      className="panel master-card"
+      key={type}
+    >
+      <div className="panel-heading">
+        <h2>{title}</h2>
 
-                      <form
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          addMaster(type);
-                        }}
-                      >
-                        <input
-                          placeholder={`New ${title}`}
-                          value={master[type]}
-                          onChange={(event) =>
-                            setMaster({
-                              ...master,
-                              [type]: event.target.value,
-                            })
-                          }
-                        />
+        <button
+          type="button"
+          onClick={() =>
+            setShowMasterLists((previous) => ({
+              ...previous,
+              [type]: !previous[type],
+            }))
+          }
+        >
+          {showMasterLists[type]
+            ? `Hide ${title}`
+            : `Show ${title}`}
+        </button>
+      </div>
 
-                        <button disabled={busy}>Add</button>
-                      </form>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          addMaster(type);
+        }}
+      >
+        <input
+          placeholder={`New ${title}`}
+          value={master[type]}
+          onChange={(event) =>
+            setMaster({
+              ...master,
+              [type]: event.target.value,
+            })
+          }
+        />
 
-                      <ul>
-                        {data[type].map((item) => (
-                          <li key={item}>
-                            <span>{item}</span>
+        <button disabled={busy}>
+          Add
+        </button>
+      </form>
 
-                            <button
-                              className="danger"
-                              onClick={() =>
-                                deleteMaster(type, item)
-                              }
-                            >
-                              Delete
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  ))}
-                </div>
+      {showMasterLists[type] && (
+        <ul>
+          {data[type].map((item) => (
+            <li key={item}>
+              <span>{item}</span>
+
+              <button
+                type="button"
+                className="danger"
+                onClick={() =>
+                  deleteMaster(type, item)
+                }
+              >
+                Delete
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  ))}
+</div>
               </>
             )}
 
