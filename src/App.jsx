@@ -629,7 +629,163 @@ const record = {
       });
     }
   }
+    function startEditStockIn(record) {
+    setEditingStockIn({
+      ...record,
+      product: record.product || '',
+      category: record.category || '',
+      supplier: record.supplier || '',
+      unit: record.unit || 'PCS',
+      pcs: record.pcs || 1,
+      boxes: record.boxes || 1,
+      price: record.price ?? '',
+      note: record.note || '',
+    });
+  }
 
+  function startEditStockOut(record) {
+    setEditingStockOut({
+      ...record,
+      product: record.product || '',
+      supplier: record.supplier || '',
+      staffName: record.staffName || '',
+      boxes: record.boxes || 1,
+      note: record.note || '',
+    });
+  }
+
+  async function saveEditedStockIn(event) {
+    event.preventDefault();
+
+    if (!editingStockIn) return;
+
+    if (
+      !editingStockIn.product.trim() ||
+      num(editingStockIn.boxes) <= 0
+    ) {
+      return setNotice(
+        'Product aur valid box quantity bharna zaroori hai'
+      );
+    }
+
+    const updatedEntry = {
+      ...editingStockIn,
+      product: editingStockIn.product.trim(),
+      category: editingStockIn.category.trim(),
+      supplier: editingStockIn.supplier.trim(),
+      unit: editingStockIn.unit || 'PCS',
+      pcs: Math.max(1, num(editingStockIn.pcs)),
+      boxes: num(editingStockIn.boxes),
+      price: num(editingStockIn.price),
+      note: editingStockIn.note || '',
+    };
+
+    const success = await save(
+      {
+        ...data,
+        entries: data.entries.map((item) =>
+          item.id === updatedEntry.id
+            ? updatedEntry
+            : item
+        ),
+      },
+      'Stock In successfully updated'
+    );
+
+    if (success) {
+      setEditingStockIn(null);
+    }
+  }
+
+  async function saveEditedStockOut(event) {
+    event.preventDefault();
+
+    if (!editingStockOut) return;
+
+    const quantity = num(editingStockOut.boxes);
+
+    if (!editingStockOut.product || quantity <= 0) {
+      return setNotice(
+        'Product aur valid quantity select karein'
+      );
+    }
+
+    const originalRecord = data.outs.find(
+      (item) => item.id === editingStockOut.id
+    );
+
+    if (!originalRecord) {
+      setEditingStockOut(null);
+      return setNotice('Stock Out record nahi mila');
+    }
+
+    let available = 0;
+
+    const sameProduct =
+      originalRecord.product === editingStockOut.product;
+
+    const sameSupplier =
+      (originalRecord.supplier || '') ===
+      (editingStockOut.supplier || '');
+
+    if (sameProduct && sameSupplier) {
+      available =
+        availableForOut + num(originalRecord.boxes);
+    } else {
+      available = stock
+        .filter((item) => {
+          if (
+            item.product !== editingStockOut.product
+          ) {
+            return false;
+          }
+
+          if (
+            editingStockOut.supplier &&
+            item.supplier !== editingStockOut.supplier
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+        .reduce(
+          (sum, item) => sum + item.available,
+          0
+        );
+    }
+
+    if (quantity > available) {
+      return setNotice(
+        `Available stock ${available} hai`
+      );
+    }
+
+    const updatedOut = {
+      ...editingStockOut,
+      product: editingStockOut.product.trim(),
+      supplier: editingStockOut.supplier.trim(),
+      staffName: editingStockOut.staffName.trim(),
+      boxes: quantity,
+      note: editingStockOut.note || '',
+    };
+
+    const success = await save(
+      {
+        ...data,
+        outs: data.outs.map((item) =>
+          item.id === updatedOut.id
+            ? updatedOut
+            : item
+        ),
+      },
+      'Stock Out successfully updated'
+    );
+
+    if (success) {
+      setEditingStockOut(null);
+    }
+  }
   async function deleteOut(record) {
     if (
       !window.confirm(
@@ -1440,16 +1596,19 @@ const printReport = () => {
                           <td>{money(item.price)}</td>
                           <td>
                             <button
-  onClick={() => setEditingStockIn(item)}
+  type="button"
+  className="history-edit-btn"
+  onClick={() => startEditStockIn(item)}
 >
-  Edit
+  ✏️ Edit
 </button>
 
 <button
-  className="danger"
+  type="button"
+  className="history-delete-btn"
   onClick={() => deleteEntry(item)}
 >
-  Delete
+  🗑 Delete
 </button>
                           </td>
                         </tr>
@@ -1483,16 +1642,19 @@ const printReport = () => {
                           <td>{item.note || '—'}</td>
                           <td>
                             <button
-  onClick={() => setEditingStockOut(item)}
+  type="button"
+  className="history-edit-btn"
+  onClick={() => startEditStockOut(item)}
 >
-  Edit
+  ✏️ Edit
 </button>
 
 <button
-  className="danger"
+  type="button"
+  className="history-delete-btn"
   onClick={() => deleteOut(item)}
 >
-  Delete
+  🗑 Delete
 </button>
                           </td>
                         </tr>
@@ -1893,6 +2055,288 @@ const printReport = () => {
   )}
 </div>
         </section>
+                {/* EDIT STOCK IN MODAL */}
+        {editingStockIn && (
+          <div className="edit-modal-backdrop">
+            <form
+              className="edit-modal"
+              onSubmit={saveEditedStockIn}
+            >
+              <div className="edit-modal-header">
+                <div>
+                  <h2>Edit Stock In</h2>
+                  <p>Stock In record update karein</p>
+                </div>
+
+                <button
+                  type="button"
+                  className="edit-close"
+                  onClick={() => setEditingStockIn(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="edit-form-grid">
+
+                <label>
+                  Product
+                  <input
+                    value={editingStockIn.product}
+                    onChange={(event) =>
+                      setEditingStockIn({
+                        ...editingStockIn,
+                        product: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Category
+                  <input
+                    value={editingStockIn.category}
+                    onChange={(event) =>
+                      setEditingStockIn({
+                        ...editingStockIn,
+                        category: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Party / Supplier
+                  <input
+                    value={editingStockIn.supplier}
+                    onChange={(event) =>
+                      setEditingStockIn({
+                        ...editingStockIn,
+                        supplier: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Unit
+                  <select
+                    value={editingStockIn.unit}
+                    onChange={(event) =>
+                      setEditingStockIn({
+                        ...editingStockIn,
+                        unit: event.target.value,
+                      })
+                    }
+                  >
+                    {data.units.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  PCS / Box
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingStockIn.pcs}
+                    onChange={(event) =>
+                      setEditingStockIn({
+                        ...editingStockIn,
+                        pcs: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Box Quantity
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingStockIn.boxes}
+                    onChange={(event) =>
+                      setEditingStockIn({
+                        ...editingStockIn,
+                        boxes: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Price / PCS (₹)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editingStockIn.price}
+                    onChange={(event) =>
+                      setEditingStockIn({
+                        ...editingStockIn,
+                        price: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Note
+                  <input
+                    value={editingStockIn.note}
+                    onChange={(event) =>
+                      setEditingStockIn({
+                        ...editingStockIn,
+                        note: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+
+              </div>
+
+              <div className="edit-modal-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setEditingStockIn(null)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="edit-save-btn"
+                  disabled={busy}
+                >
+                  {busy ? 'Saving…' : '✓ Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* EDIT STOCK OUT MODAL */}
+        {editingStockOut && (
+          <div className="edit-modal-backdrop">
+            <form
+              className="edit-modal"
+              onSubmit={saveEditedStockOut}
+            >
+              <div className="edit-modal-header">
+                <div>
+                  <h2>Edit Stock Out</h2>
+                  <p>Stock Out record update karein</p>
+                </div>
+
+                <button
+                  type="button"
+                  className="edit-close"
+                  onClick={() => setEditingStockOut(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="edit-form-grid">
+
+                <label>
+                  Product
+                  <input
+                    value={editingStockOut.product}
+                    onChange={(event) =>
+                      setEditingStockOut({
+                        ...editingStockOut,
+                        product: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Party / Supplier
+                  <input
+                    value={editingStockOut.supplier}
+                    onChange={(event) =>
+                      setEditingStockOut({
+                        ...editingStockOut,
+                        supplier: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Staff Name
+                  <input
+                    value={editingStockOut.staffName}
+                    onChange={(event) =>
+                      setEditingStockOut({
+                        ...editingStockOut,
+                        staffName: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Box / Quantity
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingStockOut.boxes}
+                    onChange={(event) =>
+                      setEditingStockOut({
+                        ...editingStockOut,
+                        boxes: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <label className="edit-full-width">
+                  Note
+                  <input
+                    value={editingStockOut.note}
+                    onChange={(event) =>
+                      setEditingStockOut({
+                        ...editingStockOut,
+                        note: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+
+              </div>
+
+              <div className="edit-modal-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setEditingStockOut(null)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="edit-save-btn"
+                  disabled={busy}
+                >
+                  {busy ? 'Saving…' : '✓ Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
         {/* QUICK ADD MASTER MODAL */}
 {quickAdd.type && (
   <div className="quick-modal-backdrop">
