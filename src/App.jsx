@@ -339,6 +339,7 @@ const [out, setOut] = useState({
     )
       ? data.categories
       : [...data.categories, category];
+      
 
     const newProduct = {
       id: makeId(),
@@ -551,12 +552,21 @@ const [out, setOut] = useState({
     )
       ? [...data.categories, category]
       : data.categories;
+    
+    const supplier = form.supplier.trim();
+
+    const suppliers = supplier && !data.suppliers.some(
+      (item) => item.toLowerCase() === supplier.toLowerCase()
+    )
+      ? [...data.suppliers, supplier]
+      : data.suppliers;
 
     const success = await save({
-      ...data,
-      categories,
-      entries: [...data.entries, entry],
-    }, 'Stock In successfully save ho gaya');
+  ...data,
+  categories,
+  suppliers,
+  entries: [...data.entries, entry],
+}, 'Stock In successfully save ho gaya');
 
     if (success) {
       setForm((previous) => ({
@@ -1182,26 +1192,28 @@ const filteredHistoryOuts = useMemo(() => {
 
 const exportExcel = () => {
   const headers = [
-    'Product',
-    'Category',
-    'PCS / Box',
-    'Available Stock',
-    'Available PCS',
-    ...(showPrice
-      ? ['Rate / PCS', 'Total Amount']
-      : []),
-  ];
+  'Product',
+  'Category',
+  ...(showParty ? ['Supplier / Party'] : []),
+  'PCS / Box',
+  'Available Stock',
+  'Available PCS',
+  ...(showPrice
+    ? ['Rate / PCS', 'Total Amount']
+    : []),
+];
 
   const rows = pdfRows.map((item) => [
-    item.product,
-    item.category || '',
-    item.pcsPerBox,
-    item.available,
-    item.availablePcs,
-    ...(showPrice
-      ? [item.price, item.availableAmount]
-      : []),
-  ]);
+  item.product,
+  item.category || '',
+  ...(showParty ? [item.supplier || ''] : []),
+  item.pcsPerBox,
+  item.available,
+  item.availablePcs,
+  ...(showPrice
+    ? [item.price, item.availableAmount]
+    : []),
+]);
 
   const worksheetData = [headers, ...rows];
 
@@ -1210,18 +1222,14 @@ const exportExcel = () => {
   );
 
   worksheet['!cols'] = [
-    { wch: 28 },
-    { wch: 20 },
-    { wch: 12 },
-    { wch: 16 },
-    { wch: 16 },
-    ...(showPrice
-      ? [
-          { wch: 14 },
-          { wch: 18 },
-        ]
-      : []),
-  ];
+  { wch: 28 },
+  { wch: 20 },
+  ...(showParty ? [{ wch: 24 }] : []),
+  { wch: 12 },
+  { wch: 16 },
+  { wch: 16 },
+  ...(showPrice ? [{ wch: 14 }, { wch: 18 }] : []),
+];
 
   const workbook = XLSX.utils.book_new();
 
@@ -1615,9 +1623,9 @@ const printReport = () => {
                 </div>
 
                 <StockTable
-  rows={filteredStock}
-  showParty={true}
-  showPrice={true}
+  rows={pdfRows}
+  showParty={showParty}
+  showPrice={showPrice}
 />
               </section>
             )}
@@ -2084,6 +2092,7 @@ const printReport = () => {
     <tr>
       <th>Product</th>
       <th>Category</th>
+      {showParty && <th>Supplier / Party</th>}
       <th>PCS / Box</th>
       <th>Box Quantity</th>
       <th>PCS Quantity</th>
@@ -2102,6 +2111,7 @@ const printReport = () => {
       <tr key={item.key}>
         <td>{item.product}</td>
         <td>{item.category || '—'}</td>
+        {showParty && <td>{item.supplier || '—'}</td>}
         <td>{item.pcsPerBox}</td>
         <td>{item.available}</td>
         <td>{item.availablePcs}</td>
