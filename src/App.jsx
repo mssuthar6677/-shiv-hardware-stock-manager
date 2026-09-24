@@ -1869,11 +1869,12 @@ const printReport = () => {
     </div>
 
     <button
-      type="button"
-      onClick={() =>
-        setShowProductList((previous) => !previous)
-      }
-    >
+  type="button"
+  className="list-toggle-btn"
+  onClick={() =>
+    setShowProductList((previous) => !previous)
+  }
+>
       {showProductList ? 'Hide Product List' : 'Show Product List'}
     </button>
   </div>
@@ -1927,14 +1928,15 @@ const printReport = () => {
         <h2>{title}</h2>
 
         <button
-          type="button"
-          onClick={() =>
-            setShowMasterLists((previous) => ({
-              ...previous,
-              [type]: !previous[type],
-            }))
-          }
-        >
+  type="button"
+  className="list-toggle-btn"
+  onClick={() =>
+    setShowMasterLists((previous) => ({
+      ...previous,
+      [type]: !previous[type],
+    }))
+  }
+>
           {showMasterLists[type]
             ? `Hide ${title}`
             : `Show ${title}`}

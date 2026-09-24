@@ -766,3 +766,26 @@ button {
     font-size: 15px;
   }
 }
+/* Master List Show / Hide Buttons */
+.list-toggle-btn {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.list-toggle-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.list-toggle-btn:active {
+  transform: translateY(0);
+}
